@@ -1,0 +1,24 @@
+services:
+  test-backend:
+    container_name: test-backend
+    build:
+      context: ../Backend
+    volumes:
+      - static_volume:/Backend/static
+    ports:
+      - "8000:8000"
+    #environment:
+    networks:
+      - test-net
+    restart: always
+    command: >
+      sh -c "python manage.py makemigrations &&
+            python manage.py migrate &&
+            gunicorn --bind 0.0.0.0:8000 config.wsgi:application"
+
+volumes:
+  static_volume:
+
+networks:
+  test-net:
+    driver: bridge
