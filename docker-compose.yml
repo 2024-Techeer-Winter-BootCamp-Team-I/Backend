@@ -1,15 +1,32 @@
 services:
-  test-backend:
-    container_name: test-backend
+  db:
+    image: mysql:8.0
+    container_name: DevSketch-MYSQL
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    networks:
+      - DevSketch-Net
+
+  backend:
+    container_name: DevSketch-Backend
     build:
       context: ../Backend
     volumes:
       - static_volume:/Backend/static
     ports:
       - "8000:8000"
-    #environment:
+    environment:
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_NAME: ${DATABASE_NAME}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
     networks:
-      - test-net
+      - DevSketch-Net
     restart: always
     command: >
       sh -c "python manage.py makemigrations &&
@@ -17,8 +34,9 @@ services:
             gunicorn --bind 0.0.0.0:8000 config.wsgi:application"
 
 volumes:
+  db_data:
   static_volume:
 
 networks:
-  test-net:
+  DevSketch-Net:
     driver: bridge
