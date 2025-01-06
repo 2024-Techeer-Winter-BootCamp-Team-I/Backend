@@ -11,7 +11,7 @@ pipeline {
         stage('Checkout') {
             steps {
 		            cleanWs() //워크스페이스 청소
-                git branch: 'main', url: "https://github.com/2024-Techeer-Winter-BootCamp-Team-I/Backend.git"
+                git branch: 'develop', url: "https://github.com/2024-Techeer-Winter-BootCamp-Team-I/Backend.git"
             }
         }
 
@@ -28,7 +28,7 @@ pipeline {
             steps {
                 script {
                     // Set image tag based on branch name
-                    if (env.BRANCH_NAME == 'main') {
+                    if (env.BRANCH_NAME == 'develop') {
                         IMAGE_TAG = "1.0.${BUILD_NUMBER}"
                     } else {
                         IMAGE_TAG = "0.0.${BUILD_NUMBER}"
