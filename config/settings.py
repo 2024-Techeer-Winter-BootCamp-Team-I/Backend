@@ -83,6 +83,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # .env 파일 로드
 load_dotenv()
 
+RUNNING_IN_DOCKER = os.getenv('RUNNING_IN_DOCKER', 'false').lower() == 'true'
+
+if RUNNING_IN_DOCKER:
+    DB_HOST = 'db'
+else:
+    DB_HOST = '127.0.0.1'
 
 DATABASES = {
     'default': {
@@ -90,7 +96,7 @@ DATABASES = {
         'NAME': os.getenv('DATABASE_NAME'),
         'USER': os.getenv('DATABASE_USER'),
         'PASSWORD': os.getenv('DATABASE_PASSWORD'),
-        'HOST': 'localhost',
+        'HOST': DB_HOST,
         'PORT': '3306',
     }
 }
