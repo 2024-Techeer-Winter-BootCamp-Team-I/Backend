@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'drf_yasg',
     'textView',
+    'document',
 ]
 
 MIDDLEWARE = [
@@ -82,6 +83,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # .env 파일 로드
 load_dotenv()
+
+# DeepSeek API 설정
+DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 
 RUNNING_IN_DOCKER = os.getenv('RUNNING_IN_DOCKER', 'false').lower() == 'true'
 
