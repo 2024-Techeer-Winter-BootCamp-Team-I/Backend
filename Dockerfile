@@ -2,7 +2,7 @@ FROM python:3.10
 
 ENV PYTHONUNBUFFERED 1
 
-WORKDIR /MVStudio-Backend
+WORKDIR /DevSketch-Backend
 
 COPY ./requirements.txt /requirements.txt
 
