@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class TextviewConfig(AppConfig):
+class LoginConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'textView'
+    name = 'login'

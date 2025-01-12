@@ -43,9 +43,15 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'drf_yasg',
-    'textView',
-    'document',
+    'django.contrib.sites',  # 필수
+    'allauth',  # allauth 앱
+    'allauth.account',  # 계정 관리
+    'allauth.socialaccount',  # 소셜 로그인 관리
+    'allauth.socialaccount.providers.github',  # GitHub 소셜 로그인 제공자 추가
+    'login.apps.LoginConfig',  # 로그인 앱
+    'document',  # 문서 앱
 ]
+SITE_ID = 1
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -55,6 +61,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware', 
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -146,3 +153,20 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend',  # 기본 백엔드
+    'allauth.account.auth_backends.AuthenticationBackend',  # allauth 백엔드
+)
+
+SOCIALACCOUNT_PROVIDERS = {
+    'github': {
+        'APP': {
+            'client_id': 'Iv23li5mwQUuau9PDgL7',
+            'secret': '88e6aed0a90f1986ecb75aa91e58849fa41e8f50',
+            'key': ''
+        }
+    }
+}
+
+LOGIN_REDIRECT_URL = '/login/home/'
