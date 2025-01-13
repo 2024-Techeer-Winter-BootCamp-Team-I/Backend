@@ -10,8 +10,7 @@ class User(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True, verbose_name='삭제 시간')
 
     class Meta:
-        verbose_name = '사용자'
-        verbose_name_plural = '사용자들'
+        db_table="user"
 
     def __str__(self):
         return self.user_id

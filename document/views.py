@@ -1,5 +1,6 @@
 import json
 import os
+import certifi
 
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -186,3 +187,5 @@ def update_document(request, document_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+# SSL 인증서 파일 경로 설정
+os.environ["SSL_CERT_FILE"] = certifi.where()

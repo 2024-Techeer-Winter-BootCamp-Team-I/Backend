@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.db import models
-from gunicorn.config import User
+#from gunicorn.config import User
 
 
 # Create your models here.
