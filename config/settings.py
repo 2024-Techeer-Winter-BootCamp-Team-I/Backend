@@ -155,8 +155,11 @@ SOCIALACCOUNT_PROVIDERS = {
             'client_id': os.getenv('GITHUB_CLIENT_ID'),
             'secret': os.getenv('GITHUB_SECRET'),
             'key': ''
-        }
+        },
+        'SCOPE': ['user', 'repo'],  # 필요한 권한 설정
     }
 }
 
 LOGIN_REDIRECT_URL = '/api/v1/login/home/'
+
+SOCIALACCOUNT_STORE_TOKENS = True
