@@ -23,6 +23,7 @@ urlpatterns = [
         path("documents/", include('document.urls')),  # 문서 관련 URL
         path("login/", include('login.urls')),  # 로그인 관련 URL
         path('accounts/', include('allauth.urls')),  # allauth URL 추가
+        path("repo/", include('repo.urls')),  # 레포지토리 관련 URL
     ])),
     
 ]

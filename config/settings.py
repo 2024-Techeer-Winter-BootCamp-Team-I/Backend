@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',  # GitHub 소셜 로그인 제공자 추가
     'login.apps.LoginConfig',  # 로그인 앱
     'document',  # 문서 앱
+    'repo.apps.RepoConfig',  # repo 앱
 ]
 SITE_ID = 1
 
