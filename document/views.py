@@ -21,7 +21,6 @@ client = OpenAI(api_key=os.environ.get("DEEPSEEK_API_KEY"), base_url=os.environ.
     request_body = CreateDocumentSerializer
 )
 @api_view(["POST"])
-@csrf_exempt
 def create_document(request):
 
     serializer = CreateDocumentSerializer(data=request.data)
@@ -123,7 +122,6 @@ def create_document(request):
     },
 )
 @api_view(["POST"])
-@csrf_exempt
 def update_document(request, document_id):
     try:
         document = Document.objects.get(id=document_id)
@@ -186,18 +184,82 @@ def update_document(request, document_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @swagger_auto_schema(
-    method='post',
-    operation_summary="설계 생성 API",
-    manual_parameters=[
+    method = 'get',
+    operation_summary = "문서 조회 API",
+    manual_parameters = [
         openapi.Parameter(
             'document_id',
             openapi.IN_PATH,
-            description="생성할 문서의 ID",
-            type=openapi.TYPE_STRING,
-            required=True,
+            description = "조회할 문서의 ID",
+            type = openapi.TYPE_STRING,
+            required = True,
         ),
     ],
-    responses={
+    responses = {
+        200: openapi.Response(
+            description="문서 조회 성공",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    "status": openapi.Schema(type=openapi.TYPE_STRING, example="success"),
+                    "data": openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        properties={
+                            "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="문서 ID"),
+                            "response": openapi.Schema(type=openapi.TYPE_STRING, description="AI 처리 결과"),
+                        },
+                    ),
+                },
+            ),
+        ),
+        400: "Bad Request",
+        404: "Document Not Found",
+        500: "Internal Server Error",
+    },
+)
+@api_view(["GET"])
+def search_document(request, document_id):
+    try:
+        document = Document.objects.get(id = document_id)
+
+    except Document.DoesNotExist:
+        return JsonResponse(
+            {
+            "status": "error",
+            "message": "해당 문서를 찾을 수 없습니다."
+            }, status=status.HTTP_404_NOT_FOUND
+        )
+
+    try:
+        return JsonResponse(
+            {
+                "status": "success",
+                "id": document.id,
+                "response": document.result,
+            }, status = status.HTTP_200_OK
+        )
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status = status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@swagger_auto_schema(
+    method = 'post',
+    operation_summary = "설계 생성 API",
+    manual_parameters = [
+        openapi.Parameter(
+            'document_id',
+            openapi.IN_PATH,
+            description = "생성할 문서의 ID",
+            type = openapi.TYPE_STRING,
+            required = True,
+        ),
+    ],
+    responses = {
         200: openapi.Response(
             description="문서 생성 성공",
             schema=openapi.Schema(
@@ -220,7 +282,6 @@ def update_document(request, document_id):
     },
 )
 @api_view(["POST"])
-@csrf_exempt
 def dev_document(request, document_id):
     try:
         document = Document.objects.get(id=document_id)
