@@ -20,7 +20,7 @@ urlpatterns = [
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     path("api/v1/", include([
-        path("documents", include('document.urls')),  # 문서 관련 URL
+        path("documents/", include('document.urls')),  # 문서 관련 URL
         path("login/", include('login.urls')),  # 로그인 관련 URL
         path('accounts/', include('allauth.urls')),  # allauth URL 추가
     ])),

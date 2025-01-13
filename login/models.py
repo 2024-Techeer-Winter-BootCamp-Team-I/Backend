@@ -12,6 +12,7 @@ class User(models.Model):
     class Meta:
         verbose_name = '사용자'
         verbose_name_plural = '사용자들'
+        db_table = 'user'  # 원하는 테이블 이름을 지정할 수 있음
 
     def __str__(self):
         return self.user_id
