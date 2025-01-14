@@ -8,7 +8,8 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from openai import OpenAI
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .tasks import create_diagram, collect_results, create_erd, create_api, redis_client
@@ -25,12 +26,15 @@ client = OpenAI(api_key=os.environ.get("DEEPSEEK_API_KEY"), base_url=os.environ.
     request_body = CreateDocumentSerializer
 )
 @api_view(["POST"])
+@permission_classes([IsAuthenticated]) #jwt 인증된 사람만 접근 가능
 def create_document(request):
 
-    serializer = CreateDocumentSerializer(data=request.data)
+    serializer = CreateDocumentSerializer(data = request.data)
 
     if serializer.is_valid():
         try:
+            user = request.user
+
             title = serializer.validated_data.get("title")
             content = serializer.validated_data.get("content")
             requirements = serializer.validated_data.get("requirements", "No requirements provided")
@@ -55,6 +59,7 @@ def create_document(request):
             result = response.choices[0].message.content
 
             document = Document.objects.create(
+                user = user,
                 title = title,
                 content = content,
                 requirements = requirements,
@@ -103,7 +108,7 @@ def create_document(request):
             'document_id',
             openapi.IN_PATH,
             description="수정할 문서의 ID",
-            type=openapi.TYPE_STRING,
+            type=openapi.TYPE_INTEGER,
             required=True,
         ),
     ],
@@ -140,13 +145,16 @@ def create_document(request):
     },
 )
 @api_view(["POST"])
+@permission_classes([IsAuthenticated]) #jwt 인증된 사람만 접근 가능
 def update_document(request, document_id):
     try:
-        document = Document.objects.get(id=document_id)
+        user = request.user
+        document = Document.objects.get(id = document_id, user = user)
+
     except Document.DoesNotExist:
         return JsonResponse({
             "status": "error",
-            "message": "해당 문서를 찾을 수 없습니다."
+            "message": "해당 user를 찾을 수 없습니다."
         }, status=status.HTTP_404_NOT_FOUND)
 
     try:
@@ -191,6 +199,7 @@ def update_document(request, document_id):
             "status": "success",
             "data": {
                 "id": document.id,
+                "user_id": user.id,
                 "response": document.result
             }
         }, status=status.HTTP_200_OK)
@@ -202,68 +211,64 @@ def update_document(request, document_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @swagger_auto_schema(
-    method = 'get',
-    operation_summary = "문서 조회 API",
-    manual_parameters = [
-        openapi.Parameter(
-            'document_id',
-            openapi.IN_PATH,
-            description = "조회할 문서의 ID",
-            type = openapi.TYPE_STRING,
-            required = True,
-        ),
-    ],
-    responses = {
+    method='get',
+    operation_summary="사용자 전체 문서 조회 API",
+    responses={
         200: openapi.Response(
-            description="문서 조회 성공",
+            description="문서 리스트 조회 성공",
             schema=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
                     "status": openapi.Schema(type=openapi.TYPE_STRING, example="success"),
                     "data": openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="문서 ID"),
-                            "response": openapi.Schema(type=openapi.TYPE_STRING, description="AI 처리 결과"),
-                        },
+                        type=openapi.TYPE_ARRAY,
+                        items=openapi.Schema(
+                            type=openapi.TYPE_OBJECT,
+                            properties={
+                                "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="문서 ID"),
+                                "title": openapi.Schema(type=openapi.TYPE_STRING, description="문서 제목"),
+                                "response": openapi.Schema(type=openapi.TYPE_STRING, description="AI 처리 결과"),
+                            },
+                        ),
                     ),
                 },
             ),
         ),
-        400: "Bad Request",
-        404: "Document Not Found",
         500: "Internal Server Error",
     },
 )
 @api_view(["GET"])
-def search_document(request, document_id):
+@permission_classes([IsAuthenticated])
+def list_documents(request):
     try:
-        document = Document.objects.get(id = document_id)
+        user = request.user
+        documents = Document.objects.filter(user=user)
 
-    except Document.DoesNotExist:
-        return JsonResponse(
+        document_list = [
             {
-            "status": "error",
-            "message": "해당 문서를 찾을 수 없습니다."
-            }, status=status.HTTP_404_NOT_FOUND
-        )
+                "id": document.id,
+                "title": document.title,
+                "response": document.result,
+            }
+            for document in documents
+        ]
 
-    try:
         return JsonResponse(
             {
                 "status": "success",
-                "id": document.id,
-                "response": document.result,
-            }, status = status.HTTP_200_OK
+                "data": document_list,
+            },
+            status=status.HTTP_200_OK,
         )
 
     except Exception as e:
-        return JsonResponse({
-            "status": "error",
-            "message": str(e)
-        }, status = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": str(e),
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
 
 @swagger_auto_schema(
     method = 'post',
@@ -300,9 +305,11 @@ def search_document(request, document_id):
     },
 )
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def dev_document(request, document_id):
     try:
-        document = Document.objects.get(id=document_id)
+        user = request.user
+        document = Document.objects.get(id=document_id, user = user)
 
     except Document.DoesNotExist:
         return Response({
@@ -321,7 +328,11 @@ def dev_document(request, document_id):
 
     try:
         final_result = task_chord.get(timeout = 120)
-        redis_client.publish("task_updetes", f"Document {document_id} 작업 완료")
+
+        try:
+            redis_client.publish("task_updetes", f"Document {document_id} 작업 완료")
+        except Exception as e:
+            print(f"Redis publish 실패: {str(e)}")
 
     except Exception as e:
         redis_client.publish("task_updates", f"Document {document_id} 작업 실패: {str(e)}")
