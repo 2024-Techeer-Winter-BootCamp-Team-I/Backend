@@ -8,8 +8,6 @@ class Repository(models.Model):
     deleted_at = models.DateTimeField(null=True, blank=True, verbose_name="삭제 일시")
 
     class Meta:
-        verbose_name = '레포지토리'
-        verbose_name_plural = '레포지토리들'
         db_table='repo'
 
     def __str__(self):

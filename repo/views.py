@@ -4,21 +4,13 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 import requests
 from allauth.socialaccount.models import SocialToken
-from django.shortcuts import get_object_or_404
+from .serializers import CreateRepoSerializer  # CreateRepoSerializer 가져오기
 
 @swagger_auto_schema(
     method='post',
     operation_summary='GitHub 레포지토리 생성',
     operation_description='GitHub에 새로운 레포지토리를 생성합니다. 선택적으로 조직(organization)을 지정할 수 있습니다.',
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'organization_name': openapi.Schema(type=openapi.TYPE_STRING, description='조직 이름 (선택사항)'),
-            'repo_name': openapi.Schema(type=openapi.TYPE_STRING, description='생성할 레포지토리 이름'),
-            'private': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='비공개 레포지토리 여부 (선택사항, 기본값: false)'),
-        },
-        required=['repo_name']  # 필수 필드: repo_name
-    ),
+    request_body=CreateRepoSerializer,  # CreateRepoSerializer 사용
     responses={
         201: openapi.Response(
             description='레포지토리 생성 성공',
@@ -49,6 +41,15 @@ from django.shortcuts import get_object_or_404
                 }
             )
         ),
+        405: openapi.Response(
+            description='허용되지 않은 메서드',
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'message': openapi.Schema(type=openapi.TYPE_STRING, description='에러 메시지'),
+                }
+            )
+        ),
     }
 )
 @api_view(['POST'])
@@ -58,7 +59,11 @@ def create_repo(request):
     - 사용자가 GitHub로 로그인한 상태여야 합니다.
     - GitHub 액세스 토큰을 사용하여 레포지토리를 생성합니다.
     - 조직(organization)에 레포지토리를 생성할 수도 있습니다.
+    - 이 엔드포인트는 POST 메서드만 허용합니다.
     """
+    if request.method != 'POST':
+        return Response({"message": "GET 요청은 허용되지 않습니다. POST 요청을 사용하세요."}, status=405)
+
     user = request.user
     if not user.is_authenticated:
         return Response({"message": "사용자가 인증되지 않았습니다."}, status=401)
@@ -70,14 +75,15 @@ def create_repo(request):
     except SocialToken.DoesNotExist:
         return Response({"message": "GitHub 액세스 토큰을 찾을 수 없습니다."}, status=401)
 
-    # 요청 데이터 파싱
-    organization_name = request.data.get('organization_name')  # 조직 이름 (선택사항)
-    repo_name = request.data.get('repo_name')  # 레포지토리 이름 (필수)
-    private = request.data.get('private', False)  # 비공개 레포지토리 여부 (선택사항, 기본값: false)
+    # 요청 데이터 유효성 검사
+    serializer = CreateRepoSerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response({"message": "잘못된 요청입니다.", "errors": serializer.errors}, status=400)
 
-    # 레포지토리 이름이 없는 경우 에러 반환
-    if not repo_name:
-        return Response({"message": "레포지토리 이름은 필수입니다."}, status=400)
+    # 유효한 데이터 추출
+    organization_name = serializer.validated_data.get('organization_name')
+    repo_name = serializer.validated_data.get('repo_name')
+    private = serializer.validated_data.get('private', False)
 
     # GitHub API 엔드포인트 설정
     if organization_name:
