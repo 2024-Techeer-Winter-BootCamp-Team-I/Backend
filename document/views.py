@@ -3,7 +3,7 @@ import os
 import certifi
 from celery import chord
 
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from openai import OpenAI
@@ -60,13 +60,27 @@ def create_document(request):
                 requirements = requirements,
                 result = result)
 
-            return JsonResponse({
-                "status": "success",
-                "data": {
-                    "id": document.id,
-                    "response": result
-                }},
-                status = status.HTTP_200_OK)
+            def stream_response():
+
+                messages = [{"role": "user", "content": prompt}]
+                response = client.chat.completions.create(
+
+                    model="deepseek-chat",
+                    messages=messages,
+                    stream=True  # 스트리밍 활성화
+                )
+                # OpenAI 응답을 조각(chunk) 단위로 처리
+                for chunk in response:
+                    chunk_dict = chunk.to_dict()
+                    content = chunk_dict.get('choices', [{}])[0].get('delta', {}).get('content', '')
+                    if content:
+                        yield f"data: {content}\n\n"
+
+            # StreamingHttpResponse로 스트리밍 데이터를 전송
+            return StreamingHttpResponse(
+                stream_response(),
+                content_type="text/event-stream"
+            )
 
         except Exception as e:
             return JsonResponse({
