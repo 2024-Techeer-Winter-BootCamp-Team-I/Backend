@@ -5,15 +5,22 @@ from drf_yasg import openapi
 from django.conf.urls.static import static
 from django.conf import settings
 
+# Schema view 설정
 schema_view = get_schema_view(
     openapi.Info(
         title="API Documentation",
         default_version='v1',
         description="API description",
+        contact=openapi.Contact(email="contact@myapi.com"),
+        license=openapi.License(name="BSD License"),
+        # Bearer 인증을 위한 security 설정 추가
+        security=[{'Bearer': []}],
     ),
     public=True,
     permission_classes=(permissions.AllowAny,),
+    authentication_classes=[],  # 인증 클래스 비워두기 (Swagger에만 적용)
 )
+
 
 urlpatterns = [
     re_path(r'^swagger(?P<format>\.json|\.yaml)$', schema_view.without_ui(cache_timeout=0), name='schema-json'),
