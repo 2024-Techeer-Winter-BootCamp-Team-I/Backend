@@ -4,8 +4,6 @@ import certifi
 from celery import chord
 
 from django.http import JsonResponse
-from django.shortcuts import render
-from django.views.decorators.csrf import csrf_exempt
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 from openai import OpenAI
@@ -13,7 +11,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .tasks import create_diagram, collect_results, create_erd, create_api
+from .tasks import create_diagram, collect_results, create_erd, create_api, redis_client
 
 import document
 from document.models import Document
@@ -298,9 +296,6 @@ def dev_document(request, document_id):
             "message": "해당 문서를 찾을 수 없습니다."
         }, status=status.HTTP_404_NOT_FOUND)
 
-    # 프론트엔드의 결과 수신용 URL
-    frontend_url = os.getenv("FRONTEND_RESULT_URL")
-
     # chord 병렬 작업 실행(모두 완료되면 콜백)
     task_chord = chord(
         [
@@ -312,7 +307,10 @@ def dev_document(request, document_id):
 
     try:
         final_result = task_chord.get(timeout = 120)
+        redis_client.publish("task_updetes", f"Document {document_id} 작업 완료")
+
     except Exception as e:
+        redis_client.publish("task_updates", f"Document {document_id} 작업 실패: {str(e)}")
         return Response({
             "status": "error",
             "message": str(e)
