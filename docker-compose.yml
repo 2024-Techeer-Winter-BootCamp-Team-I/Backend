@@ -28,8 +28,8 @@ services:
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
       DEEPSEEK_API_URL: ${DEEPSEEK_API_URL}
-      CELERY_BROKER_URL: 'amqp://guest:guest@rabbitmq:5672//'
-      CELERY_RESULT_BACKEND: 'redis://redis:6379/0'
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
       FRONTEND_RESULT_URL: ${FRONTEND_RESULT_URL}
     networks:
       - DevSketch-Net
@@ -64,9 +64,9 @@ services:
       - rabbitmq
       - redis
     environment:
-      CELERY_BROKER_URL: 'amqp://guest:guest@rabbitmq:5672//'
-      CELERY_RESULT_BACKEND: 'redis://redis:6379/0'  # Redis로 변경
-      DATABASE_HOST: db
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+      DATABASE_HOST: ${DATABASE_HOST}
       DATABASE_NAME: ${MYSQL_DATABASE}
       DATABASE_USER: ${MYSQL_USER}
       DATABASE_PASSWORD: ${MYSQL_PASSWORD}
