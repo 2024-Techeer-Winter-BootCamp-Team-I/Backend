@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-
+from datetime import timedelta
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -41,8 +41,10 @@ INSTALLED_APPS = [
     'document',  # 문서 앱
     'repo.apps.RepoConfig',  # repo 앱
     'django_celery_results',
-
+    'rest_framework_simplejwt',  # JWT 토큰 라이브러리
+    'social_django',  # 소셜 인증 라이브러리
 ]
+
 SITE_ID = 1
 
 MIDDLEWARE = [
@@ -162,13 +164,58 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 
-LOGIN_REDIRECT_URL = '/api/v1/login/home/'
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',  # JWT 토큰 인증
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',  # 인증된 사용자만 허용
+    ]
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Access Token 유효 기간
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Refresh Token 유효 기간
+    'ROTATE_REFRESH_TOKENS': False,  # Refresh Token 갱신 여부
+    'BLACKLIST_AFTER_ROTATION': True,  # Refresh Token 갱신 후 이전 토큰 블랙리스트 추가
+}
 
 
 SOCIALACCOUNT_STORE_TOKENS = True
 
-AUTH_USER_MODEL = "login.User"
 
+OPENAPI_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+        }
+    }
+}
+
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,
+    'SECURITY_DEFINITIONS': {
+        'BearerAuth': {
+            'type': 'apiKey',
+            'name': 'Authorization',
+            'in': 'header',
+            'description': "JWT Token"
+        }
+    },
+    'SECURITY_REQUIREMENTS': [{
+        'BearerAuth': []
+    }]
+}
+
+CORS_ALLOW_CREDENTIALS = True
+CORS_ORIGIN_WHITELIST = [
+    'http://localhost:8000',  # 클라이언트 주소
+]
+
+SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_CLIENT_ID')  # GitHub OAuth App의 Client ID
+SOCIAL_AUTH_GITHUB_SECRET = os.getenv('GITHUB_SECRET')  # GitHub OAuth App의 Client Secret
 
 #Celery 설정
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
