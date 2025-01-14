@@ -1,6 +1,7 @@
 import json
 import os
 import certifi
+from celery import chord
 
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -10,7 +11,11 @@ from drf_yasg.utils import swagger_auto_schema
 from openai import OpenAI
 from rest_framework import status
 from rest_framework.decorators import api_view
+from rest_framework.response import Response
 
+from .tasks import create_diagram, collect_results, create_erd, create_api
+
+import document
 from document.models import Document
 from document.serializers import CreateDocumentSerializer
 
@@ -288,88 +293,40 @@ def dev_document(request, document_id):
         document = Document.objects.get(id=document_id)
 
     except Document.DoesNotExist:
-        return JsonResponse({
+        return Response({
             "status": "error",
             "message": "해당 문서를 찾을 수 없습니다."
         }, status=status.HTTP_404_NOT_FOUND)
 
-    diagram_prompt = f"""
-    {document.result}를 사용하여 체계적이고 시퀀스 다이어그램을 mermaid형식으로 코드를 생성해주세요.
-    또한, 실제 환경에서 바로 사용할 수 있도록 쳬계적으로 고도화 및 모듈화를 해주세요.
-    """
+    # 프론트엔드의 결과 수신용 URL
+    frontend_url = os.getenv("FRONTEND_RESULT_URL")
 
-    erd_prompt = f"""
-    {document.result}를 사용하여 체계적이고 erd를 mermaid형식으로 코드를 생성해주세요.
-    또한, 실제 환경에서 바로 사용할 수 있도록 쳬계적으로 고도화 및 모듈화를 해주세요.
-    """
-
-    api_prompt = f"""
-    {document.result}를 사용하여 체계적이고 api명세서를 swagger.json 코드로 생성해주세요.
-    또한, 실제 환경에서 바로 사용할 수 있도록 쳬계적으로 고도화 및 모듈화를 해주세요.
-    """
+    # chord 병렬 작업 실행(모두 완료되면 콜백)
+    task_chord = chord(
+        [
+            create_diagram.s(document.result),
+            create_erd.s(document.result),
+            create_api.s(document.result),
+        ]
+    )(collect_results.s())
 
     try:
-        diagram_response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": diagram_prompt}]
-        )
-
-        erd_response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": erd_prompt}]
-        )
-
-        api_response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": api_prompt}]
-        )
-
-    except Exception:
-        return JsonResponse({
+        final_result = task_chord.get(timeout = 120)
+    except Exception as e:
+        return Response({
             "status": "error",
-            "message": "AI API와의 통신에 실패했습니다. 다시 시도해주세요."
+            "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    try:
-        diagram_result = diagram_response.choices[0].message.content
-        erd_result = erd_response.choices[0].message.content
-        api_result = api_response.choices[0].message.content
+    document.diagram_code = final_result["diagram"]
+    document.erd_code = final_result["erd"]
+    document.api_code = final_result["api"]
+    document.save()
 
-    except (KeyError, IndexError):
-        return JsonResponse({
-            "status": "error",
-            "message": "AI 응답 처리에 실패했습니다. 다시 시도해주세요."
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    try:
-        document.diagram_code = diagram_result
-        document.erd_code = erd_result
-        document.api_code = api_result
-
-        document.save()
-
-    except Exception:
-        return JsonResponse({
-            "status": "error",
-            "message": "문서 저장 중 문제가 발생했습니다. 다시 시도해주세요."
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    return JsonResponse({
+    return Response({
         "status": "success",
-        "data": {
-            "id": document.id,
-            "diagram-code": diagram_result,
-            "erd-code": erd_result,
-            "api-code": api_result,
-        }},
-        status=status.HTTP_200_OK
-    )
-
-
-
-
-
-
+        "data": final_result,
+    }, status = status.HTTP_200_OK)
 
 
 # SSL 인증서 파일 경로 설정

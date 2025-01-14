@@ -28,13 +28,53 @@ services:
       DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
       DEEPSEEK_API_URL: ${DEEPSEEK_API_URL}
+      CELERY_BROKER_URL: 'amqp://guest:guest@rabbitmq:5672//'
+      CELERY_RESULT_BACKEND: 'redis://redis:6379/0'
+      FRONTEND_RESULT_URL: ${FRONTEND_RESULT_URL}
     networks:
       - DevSketch-Net
     restart: always
-    #command: >
-    #  sh -c "gunicorn --bind 0.0.0.0:8000 config.wsgi:application"
     command: >
       sh -c "gunicorn --bind 0.0.0.0:8000 config.wsgi:application --timeout 120"
+
+  redis:
+    image: redis:7.0
+    container_name: DevSketch-Redis
+    ports:
+      - "6379:6379"
+    networks:
+      - DevSketch-Net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: DevSketch-RabbitMQ
+    ports:
+      - "5672:5672"  # Default RabbitMQ port
+      - "15672:15672"  # RabbitMQ Management UI
+    networks:
+      - DevSketch-Net
+
+  celery_worker:
+    build:
+      context: ../Backend
+    container_name: DevSketch-Celery-Worker
+    command: celery -A config worker --loglevel=info
+    depends_on:
+      - backend
+      - rabbitmq
+      - redis
+    environment:
+      CELERY_BROKER_URL: 'amqp://guest:guest@rabbitmq:5672//'
+      CELERY_RESULT_BACKEND: 'redis://redis:6379/0'  # Redis로 변경
+      DATABASE_HOST: db
+      DATABASE_NAME: ${MYSQL_DATABASE}
+      DATABASE_USER: ${MYSQL_USER}
+      DATABASE_PASSWORD: ${MYSQL_PASSWORD}
+      DEEPSEEK_API_URL: ${DEEPSEEK_API_URL}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+      FRONTEND_RESULT_URL: ${FRONTEND_RESULT_URL}
+    networks:
+      - DevSketch-Net
 
 volumes:
   db_data:
