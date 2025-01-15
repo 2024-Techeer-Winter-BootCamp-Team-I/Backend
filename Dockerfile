@@ -11,5 +11,3 @@ RUN pip install --upgrade -r /requirements.txt
 COPY . ./
 
 RUN python manage.py collectstatic --noinput
-
-COPY ./login/templates ./
