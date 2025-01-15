@@ -53,3 +53,4 @@ django-celery-results==2.5.1
 redis==5.2.1
 djangorestframework_simplejwt==5.4.0
 social-auth-app-django==5.4.2
+PyGithub>=2.0.0

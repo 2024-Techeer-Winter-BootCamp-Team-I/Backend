@@ -1,16 +1,30 @@
+import os
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework import status
+from github import Github
+from allauth.socialaccount.models import SocialToken
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-import requests
-from allauth.socialaccount.models import SocialToken
-from .serializers import CreateRepoSerializer  # CreateRepoSerializer 가져오기
 
 @swagger_auto_schema(
     method='post',
-    operation_summary='GitHub 레포지토리 생성',
-    operation_description='GitHub에 새로운 레포지토리를 생성합니다. 선택적으로 조직(organization)을 지정할 수 있습니다.',
-    request_body=CreateRepoSerializer,  # CreateRepoSerializer 사용
+    operation_summary = '레포지토리 생성 API',
+    operation_description="""
+    GitHub 레포지토리 생성 API
+    - 사용자가 GitHub로 로그인한 상태여야 합니다.
+    - GitHub 액세스 토큰을 사용하여 레포지토리를 생성합니다.
+    - 조직(organization)에 레포지토리를 생성할 수도 있습니다.
+    """,
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'organization_name': openapi.Schema(type=openapi.TYPE_STRING, description='레포지토리를 생성할 조직 이름'),
+            'repo_name': openapi.Schema(type=openapi.TYPE_STRING, description='생성할 레포지토리 이름'),
+            'private': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='비공개 레포지토리 여부 (기본값: false)'),
+        },
+        required=['repo_name']
+    ),
     responses={
         201: openapi.Response(
             description='레포지토리 생성 성공',
@@ -41,8 +55,8 @@ from .serializers import CreateRepoSerializer  # CreateRepoSerializer 가져오�
                 }
             )
         ),
-        405: openapi.Response(
-            description='허용되지 않은 메서드',
+        500: openapi.Response(
+            description='서버 오류',
             schema=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
@@ -52,14 +66,14 @@ from .serializers import CreateRepoSerializer  # CreateRepoSerializer 가져오�
         ),
     }
 )
+
 @api_view(['POST'])
 def create_repo(request):
     """
-    GitHub 레포지토리 생성 API
+    GitHub 레포지토리 생성 및 파일 푸시 API
     - 사용자가 GitHub로 로그인한 상태여야 합니다.
-    - GitHub 액세스 토큰을 사용하여 레포지토리를 생성합니다.
+    - GitHub 액세스 토큰을 사용하여 레포지토리를 생성하고 파일을 푸시합니다.
     - 조직(organization)에 레포지토리를 생성할 수도 있습니다.
-    - 이 엔드포인트는 POST 메서드만 허용합니다.
     """
     if request.method != 'POST':
         return Response({"message": "GET 요청은 허용되지 않습니다. POST 요청을 사용하세요."}, status=405)
@@ -76,49 +90,62 @@ def create_repo(request):
         return Response({"message": "GitHub 액세스 토큰을 찾을 수 없습니다."}, status=401)
 
     # 요청 데이터 유효성 검사
-    serializer = CreateRepoSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response({"message": "잘못된 요청입니다.", "errors": serializer.errors}, status=400)
+    directory_path = request.data.get('directory_path')
+    repo_name = request.data.get('repo_name')
+    private = request.data.get('private', False)
+    organization_name = request.data.get('organization_name')  # 조직 이름 (옵션)
 
-    # 유효한 데이터 추출
-    organization_name = serializer.validated_data.get('organization_name')
-    repo_name = serializer.validated_data.get('repo_name')
-    private = serializer.validated_data.get('private', False)
+    if not directory_path or not repo_name:
+        return Response(
+            {"message": "directory_path와 repo_name은 필수입니다."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
-    # GitHub API 엔드포인트 설정
-    if organization_name:
-        # 조직(organization)에 레포지토리 생성
-        url = f'https://api.github.com/orgs/{organization_name}/repos'
-    else:
-        # 사용자의 개인 계정에 레포지토리 생성
-        url = 'https://api.github.com/user/repos'
+    try:
+        # GitHub API 클라이언트 초기화
+        g = Github(access_token)
 
-    # GitHub API에 전송할 데이터 준비
-    payload = {
-        "name": repo_name,  # 레포지토리 이름
-        "private": private,  # 비공개 여부
-    }
+        # 레포지토리 생성
+        if organization_name:
+            # 조직(organization)에 레포지토리 생성
+            org = g.get_organization(organization_name)
+            repo = org.create_repo(repo_name, private=private)
+        else:
+            # 사용자의 개인 계정에 레포지토리 생성
+            user = g.get_user()
+            repo = user.create_repo(repo_name, private=private)
 
-    # GitHub API 요청 헤더 설정
-    headers = {
-        "Authorization": f"Bearer {access_token}",  # 액세스 토큰 사용
-        "Accept": "application/vnd.github.v3+json"  # GitHub API 버전 지정
-    }
+        # 파일 푸시
+        push_directory_to_github(repo, directory_path)
 
-    # GitHub API에 POST 요청 보내기
-    response = requests.post(url, json=payload, headers=headers)
-
-    # 응답 처리
-    if response.status_code == 201:
-        # 레포지토리 생성 성공
-        repo_url = response.json().get('html_url')  # 생성된 레포지토리 URL
+        # 성공 응답
         return Response({
             "status": "success",
-            "repo_url": repo_url,
-            "message": "레포지토리가 성공적으로 생성되었습니다."
-        }, status=201)
-    else:
-        # 레포지토리 생성 실패
+            "repo_url": repo.html_url,
+            "message": "레포지토리 생성 및 파일 푸시가 완료되었습니다."
+        }, status=status.HTTP_201_CREATED)
+
+    except Exception as e:
+        print(e)
         return Response({
-            "message": f"레포지토리 생성 실패: {response.json().get('message', '알 수 없는 오류')}"
-        }, status=response.status_code)
+            "status": "error",
+            "message": f"레포지토리 생성 실패: {str(e)}"
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+def push_directory_to_github(repo, directory):
+    """
+    디렉터리의 파일을 GitHub 레포지토리에 푸시합니다.
+    """
+    for root, dirs, files in os.walk(directory):
+        for file in files:
+            file_path = os.path.join(root, file)
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            repo_path = os.path.relpath(file_path, directory).replace('\\', '/')
+            repo.create_file(
+                path=repo_path,
+                message=f"Add {repo_path}",
+                content=content,
+                branch="main"
+            )
