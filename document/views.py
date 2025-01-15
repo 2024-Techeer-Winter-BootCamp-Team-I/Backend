@@ -239,7 +239,7 @@ def update_document(request, document_id):
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
-def list_documents(request):
+def search_document(request):
     try:
         user = request.user
         documents = Document.objects.filter(user=user)
