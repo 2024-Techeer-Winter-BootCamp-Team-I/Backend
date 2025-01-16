@@ -225,3 +225,5 @@ CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0
 CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_ENABLE_UTC = False
 
+#배포서버 호스트
+ALLOWED_HOSTS = ['devsketch.site', 'www.devsketch.site', 'localhost', '127.0.0.1']
