@@ -1,7 +1,10 @@
 import json
 import os
+import time
+
 import certifi
 import openai
+import requests
 from celery import chord
 
 from django.http import JsonResponse, StreamingHttpResponse
@@ -12,6 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from config import settings
 from .tasks import create_diagram, collect_results, create_erd, create_api, redis_client
 
 import document
@@ -25,90 +29,108 @@ openai.api_base = os.environ.get("DEEPSEEK_API_URL")  # 예: "https://api.deepse
 # 클라이언트 변수에 openai 모듈 할당
 client = openai
 @swagger_auto_schema(
-    method = 'post',
-    operation_summary = '문서 생성 API',
-    request_body = CreateDocumentSerializer
+    method='post',
+    operation_summary='문서 생성 API',
+    request_body=CreateDocumentSerializer
 )
 @api_view(["POST"])
-@permission_classes([IsAuthenticated]) #jwt 인증된 사람만 접근 가능
+@permission_classes([IsAuthenticated])
 def create_document(request):
-
-    serializer = CreateDocumentSerializer(data = request.data)
+    serializer = CreateDocumentSerializer(data=request.data)
 
     if serializer.is_valid():
         try:
+            # 사용자 정보 확인
             user = request.user
-            print(request.user)  # None이 출력되는지 확인
             if not user:
                 return JsonResponse({
                     "status": "error",
                     "message": "사용자를 찾을 수 없습니다.",
                     "code": "user_not_found"
-            }, status=status.HTTP_404_NOT_FOUND)
+                }, status=status.HTTP_404_NOT_FOUND)
 
+            # 요청 데이터 파싱
             title = serializer.validated_data.get("title")
             content = serializer.validated_data.get("content")
             requirements = serializer.validated_data.get("requirements", "No requirements provided")
 
+            # DeepSeek API 호출을 위한 프롬프트 생성
             prompt = f"""
-                        Title: {title}
-                        Content: {content}
-                        requirements: {requirements}
+                Title: {title}
+                Content: {content}
+                Requirements: {requirements}
 
-                        위 내용을 가지고 쳬계적인 문서화를 만들어주세요.
-                        방식은 
-                        Title: {title}
-                        Content: {content}
-                        requirements: {requirements} 형식으로 체계적으로 다시 문서화 해주세요.
-                        """
+                위 내용을 가지고 체계적인 문서화를 만들어주세요.
+                방식은 
+                Title: {title}
+                Content: {content}
+                Requirements: {requirements} 형식으로 체계적으로 다시 문서화 해주세요.
+            """
 
-            messages = [{"role": "user", "content": prompt}]
-            response = client.chat.completions.create(
-                model = "deepseek-chat",
-                messages = messages)
+            def event_stream():
+                try:
+                    yield f"data: Review start.\n\n"
+                    time.sleep(1)
 
-            result = response.choices[0].message.content
+                    review_result = call_deepseek_api(prompt)
+                    for line in review_result.split("\n"):
+                        yield f"data: {line}\n\n"
+                        time.sleep(0.5)
 
+                    yield f"data: Review completed.\n\n"
+                except Exception as e:
+                    yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+
+            # DeepSeek API 호출 후 Document 저장
+            review_result = call_deepseek_api(prompt)
             document = Document.objects.create(
-                user_id = user,
-                title = title,
-                content = content,
-                requirements = requirements,
-                result = result)
-
-            def stream_response():
-
-                messages = [{"role": "user", "content": prompt}]
-                response = client.chat.completions.create(
-
-                    model="deepseek-chat",
-                    messages=messages,
-                    stream=True  # 스트리밍 활성화
-                )
-                # OpenAI 응답을 조각(chunk) 단위로 처리
-                for chunk in response:
-                    chunk_dict = chunk.to_dict()
-                    content = chunk_dict.get('choices', [{}])[0].get('delta', {}).get('content', '')
-                    if content:
-                        yield f"data: {content}\n\n"
-
-            # StreamingHttpResponse로 스트리밍 데이터를 전송
-            return StreamingHttpResponse(
-                stream_response(),
-                content_type="text/event-stream"
+                user_id=user,
+                title=title,
+                content=content,
+                requirements=requirements,
+                result=review_result
             )
+
+            return StreamingHttpResponse(event_stream(), content_type="text/event-stream")
 
         except Exception as e:
             return JsonResponse({
                 "status": "error",
-                "message": str(e)},
-                status = status.HTTP_500_INTERNAL_SERVER_ERROR)
+                "message": str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     else:
         return JsonResponse({
             "status": "error",
-            "errors": serializer.errors},
-            status = status.HTTP_400_BAD_REQUEST)
+            "errors": serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+def call_deepseek_api(prompt):
+    api_url = "https://api.deepseek.com/v1/chat/completions"
+    api_key = settings.DEEPSEEK_API_KEY
+
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "stream": False
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    response = requests.post(api_url, json=payload, headers=headers)
+
+    if response.status_code == 200:
+        review_result = response.json()
+        return review_result['choices'][0]['message']['content']
+    else:
+        error_msg = response.json().get("error", "Unknown error occurred.")
+        raise Exception(f"DeepSeek API failed: {error_msg}")
+
 
 
 @swagger_auto_schema(
