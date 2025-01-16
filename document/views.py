@@ -1,12 +1,12 @@
 import json
 import os
 import certifi
+import openai
 from celery import chord
 
 from django.http import JsonResponse, StreamingHttpResponse
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-from openai import OpenAI
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -18,8 +18,12 @@ import document
 from document.models import Document
 from document.serializers import CreateDocumentSerializer
 
-# Create your views here.
-client = OpenAI(api_key=os.environ.get("DEEPSEEK_API_KEY"), base_url=os.environ.get("DEEPSEEK_API_URL"))
+#client = OpenAI(api_key=os.environ.get("DEEPSEEK_API_KEY"), base_url=os.environ.get("DEEPSEEK_API_URL"))
+openai.api_key = os.environ.get("DEEPSEEK_API_KEY")
+openai.api_base = os.environ.get("DEEPSEEK_API_URL")  # 예: "https://api.deepseek.com/v1"
+
+# 클라이언트 변수에 openai 모듈 할당
+client = openai
 @swagger_auto_schema(
     method = 'post',
     operation_summary = '문서 생성 API',

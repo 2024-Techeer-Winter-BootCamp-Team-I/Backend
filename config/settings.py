@@ -228,6 +228,11 @@ CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0
 CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_ENABLE_UTC = False
 
+
 ALLAUTH_MIGRATION_MODULES = {
     'account': 'login.migrations',  # allauth의 마이그레이션을 무시
 }
+
+#배포서버 호스트
+ALLOWED_HOSTS = ['devsketch.site', 'www.devsketch.site', 'localhost', '127.0.0.1']
+
