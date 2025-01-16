@@ -168,18 +168,22 @@ SOCIALACCOUNT_PROVIDERS = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',  # JWT 토큰 인증
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT 토큰 인증
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',  # 인증된 사용자만 허용
+        #'rest_framework.permissions.IsAuthenticated',  # 인증된 사용자만 허용
+        'rest_framework.permissions.AllowAny', 
     ]
 }
+
+AUTH_USER_MODEL = 'login.User'
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Access Token 유효 기간
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Refresh Token 유효 기간
     'ROTATE_REFRESH_TOKENS': False,  # Refresh Token 갱신 여부
     'BLACKLIST_AFTER_ROTATION': True,  # Refresh Token 갱신 후 이전 토큰 블랙리스트 추가
+    'AUTH_HEADER_TYPES': ('Bearer',),  # 인증 헤더 타입
 }
 
 
@@ -196,19 +200,18 @@ OPENAPI_SETTINGS = {
     }
 }
 
+# settings.py
+
 SWAGGER_SETTINGS = {
-    'USE_SESSION_AUTH': False,
     'SECURITY_DEFINITIONS': {
-        'BearerAuth': {
+        'Bearer': {
             'type': 'apiKey',
             'name': 'Authorization',
             'in': 'header',
-            'description': "JWT Token"
+            'description': 'JWT 토큰을 입력하세요. 예: "Bearer {토큰}"',
         }
     },
-    'SECURITY_REQUIREMENTS': [{
-        'BearerAuth': []
-    }]
+    'USE_SESSION_AUTH': False,  # 세션 인증 비활성화 (JWT만 사용)
 }
 
 CORS_ALLOW_CREDENTIALS = True
@@ -225,3 +228,6 @@ CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/0
 CELERY_TIMEZONE = 'Asia/Seoul'
 CELERY_ENABLE_UTC = False
 
+ALLAUTH_MIGRATION_MODULES = {
+    'account': 'login.migrations',  # allauth의 마이그레이션을 무시
+}

@@ -34,6 +34,13 @@ def create_document(request):
     if serializer.is_valid():
         try:
             user = request.user
+            print(request.user)  # None이 출력되는지 확인
+            if not user:
+                return JsonResponse({
+                    "status": "error",
+                    "message": "사용자를 찾을 수 없습니다.",
+                    "code": "user_not_found"
+            }, status=status.HTTP_404_NOT_FOUND)
 
             title = serializer.validated_data.get("title")
             content = serializer.validated_data.get("content")
@@ -59,7 +66,7 @@ def create_document(request):
             result = response.choices[0].message.content
 
             document = Document.objects.create(
-                user = user,
+                user_id = user,
                 title = title,
                 content = content,
                 requirements = requirements,
@@ -149,7 +156,7 @@ def create_document(request):
 def update_document(request, document_id):
     try:
         user = request.user
-        document = Document.objects.get(id = document_id, user = user)
+        document = Document.objects.get(id = document_id, user_id = user)
 
     except Document.DoesNotExist:
         return JsonResponse({
@@ -242,7 +249,7 @@ def update_document(request, document_id):
 def search_document(request):
     try:
         user = request.user
-        documents = Document.objects.filter(user=user)
+        documents = Document.objects.filter(user_id=user)
 
         document_list = [
             {
@@ -309,7 +316,7 @@ def search_document(request):
 def dev_document(request, document_id):
     try:
         user = request.user
-        document = Document.objects.get(id=document_id, user = user)
+        document = Document.objects.get(id=document_id, user_id = user)
 
     except Document.DoesNotExist:
         return Response({
