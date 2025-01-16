@@ -32,6 +32,7 @@ urlpatterns = [
         path('accounts/', include('allauth.urls')),  # allauth URL 추가
         path("repo/", include('repo.urls')),  # 레포지토리 관련 URL
         path("frontend/", include('Frontend.urls')),  # 프론트엔드 설정 API 추가
+        path("backend/", include('Backend.urls')),  # 백엔드 설정 API 추가
         path('directories/', include('directory.urls')),
     ])),
     
