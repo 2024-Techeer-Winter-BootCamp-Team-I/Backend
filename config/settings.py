@@ -160,7 +160,7 @@ SOCIALACCOUNT_PROVIDERS = {
     'github': {
         'APP': {
             'client_id': os.getenv('GITHUB_CLIENT_ID'),
-            'secret': os.getenv('GITHUB_SECRET'),
+            'secret': os.getenv('GITHUB_CLIENT_SECRET'),
             'key': ''
         },
         'SCOPE': ['user', 'repo'],  # 필요한 권한 설정
@@ -221,7 +221,7 @@ CORS_ORIGIN_WHITELIST = [
 ]
 
 SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_CLIENT_ID')  # GitHub OAuth App의 Client ID
-SOCIAL_AUTH_GITHUB_SECRET = os.getenv('GITHUB_SECRET')  # GitHub OAuth App의 Client Secret
+SOCIAL_AUTH_GITHUB_SECRET = os.getenv('GITHUB_CLIENT_SECRET')  # GitHub OAuth App의 Client Secret
 
 #Celery 설정
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@rabbitmq:5672//')
