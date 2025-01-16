@@ -66,7 +66,6 @@ from drf_yasg import openapi
         ),
     }
 )
-
 @api_view(['POST'])
 def create_repo(request):
     """
@@ -90,14 +89,15 @@ def create_repo(request):
         return Response({"message": "GitHub 액세스 토큰을 찾을 수 없습니다."}, status=401)
 
     # 요청 데이터 유효성 검사
-    directory_path = request.data.get('directory_path')
     repo_name = request.data.get('repo_name')
     private = request.data.get('private', False)
     organization_name = request.data.get('organization_name')  # 조직 이름 (옵션)
+    frontend_template = request.data.get('frontend_template')  # 프론트엔드 템플릿 (옵션)
+    backend_template = request.data.get('backend_template')    # 백엔드 템플릿 (옵션)
 
-    if not directory_path or not repo_name:
+    if not repo_name:
         return Response(
-            {"message": "directory_path와 repo_name은 필수입니다."},
+            {"message": "repo_name은 필수입니다."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -115,8 +115,10 @@ def create_repo(request):
             user = g.get_user()
             repo = user.create_repo(repo_name, private=private)
 
-        # 파일 푸시
-        push_directory_to_github(repo, directory_path)
+        # 파일 푸시 (백엔드 템플릿이 있는 경우)
+        if backend_template:
+            backend_dir = os.path.join("Backend", backend_template)
+            push_directory_to_github(repo, backend_dir)
 
         # 성공 응답
         return Response({
