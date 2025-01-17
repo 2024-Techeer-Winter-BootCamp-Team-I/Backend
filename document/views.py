@@ -1,7 +1,9 @@
-import json
 import os
+import time
+
 import certifi
 import openai
+import requests
 from celery import chord
 
 from django.http import JsonResponse, StreamingHttpResponse
@@ -12,217 +14,29 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from config import settings
 from .tasks import create_diagram, collect_results, create_erd, create_api, redis_client
 
-import document
 from document.models import Document
-from document.serializers import CreateDocumentSerializer
+from document.serializers import CreateDocumentSerializer, UpdateDocumentSerializer
 
-#client = OpenAI(api_key=os.environ.get("DEEPSEEK_API_KEY"), base_url=os.environ.get("DEEPSEEK_API_URL"))
+from login.models import Project
+
 openai.api_key = os.environ.get("DEEPSEEK_API_KEY")
-openai.api_base = os.environ.get("DEEPSEEK_API_URL")  # 예: "https://api.deepseek.com/v1"
-
-# 클라이언트 변수에 openai 모듈 할당
-client = openai
-@swagger_auto_schema(
-    method = 'post',
-    operation_summary = '문서 생성 API',
-    request_body = CreateDocumentSerializer
-)
-@api_view(["POST"])
-@permission_classes([IsAuthenticated]) #jwt 인증된 사람만 접근 가능
-def create_document(request):
-
-    serializer = CreateDocumentSerializer(data = request.data)
-
-    if serializer.is_valid():
-        try:
-            user = request.user
-            print(request.user)  # None이 출력되는지 확인
-            if not user:
-                return JsonResponse({
-                    "status": "error",
-                    "message": "사용자를 찾을 수 없습니다.",
-                    "code": "user_not_found"
-            }, status=status.HTTP_404_NOT_FOUND)
-
-            title = serializer.validated_data.get("title")
-            content = serializer.validated_data.get("content")
-            requirements = serializer.validated_data.get("requirements", "No requirements provided")
-
-            prompt = f"""
-                        Title: {title}
-                        Content: {content}
-                        requirements: {requirements}
-
-                        위 내용을 가지고 쳬계적인 문서화를 만들어주세요.
-                        방식은 
-                        Title: {title}
-                        Content: {content}
-                        requirements: {requirements} 형식으로 체계적으로 다시 문서화 해주세요.
-                        """
-
-            messages = [{"role": "user", "content": prompt}]
-            response = client.chat.completions.create(
-                model = "deepseek-chat",
-                messages = messages)
-
-            result = response.choices[0].message.content
-
-            document = Document.objects.create(
-                user_id = user,
-                title = title,
-                content = content,
-                requirements = requirements,
-                result = result)
-
-            def stream_response():
-
-                messages = [{"role": "user", "content": prompt}]
-                response = client.chat.completions.create(
-
-                    model="deepseek-chat",
-                    messages=messages,
-                    stream=True  # 스트리밍 활성화
-                )
-                # OpenAI 응답을 조각(chunk) 단위로 처리
-                for chunk in response:
-                    chunk_dict = chunk.to_dict()
-                    content = chunk_dict.get('choices', [{}])[0].get('delta', {}).get('content', '')
-                    if content:
-                        yield f"data: {content}\n\n"
-
-            # StreamingHttpResponse로 스트리밍 데이터를 전송
-            return StreamingHttpResponse(
-                stream_response(),
-                content_type="text/event-stream"
-            )
-
-        except Exception as e:
-            return JsonResponse({
-                "status": "error",
-                "message": str(e)},
-                status = status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-    else:
-        return JsonResponse({
-            "status": "error",
-            "errors": serializer.errors},
-            status = status.HTTP_400_BAD_REQUEST)
-
+openai.api_base = os.environ.get("DEEPSEEK_API_URL")
 
 @swagger_auto_schema(
-    method='post',
-    operation_summary="문서 수정 API",
-    manual_parameters=[
-        openapi.Parameter(
-            'document_id',
-            openapi.IN_PATH,
-            description="수정할 문서의 ID",
-            type=openapi.TYPE_INTEGER,
-            required=True,
-        ),
-    ],
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'prompt': openapi.Schema(
-                type=openapi.TYPE_STRING,
-                description="추가 요청 내용을 포함한 프롬프트"
-            ),
-        },
-        required=['prompt']
-    ),
+    methods=['POST'],
+    operation_summary="문서 생성 API",
+    request_body=CreateDocumentSerializer,
     responses={
-        200: openapi.Response(
-            description="문서 수정 성공",
-            schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    "status": openapi.Schema(type=openapi.TYPE_STRING, example="success"),
-                    "data": openapi.Schema(
-                        type=openapi.TYPE_OBJECT,
-                        properties={
-                            "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="문서 ID"),
-                            "response": openapi.Schema(type=openapi.TYPE_STRING, description="AI 처리 결과"),
-                        },
-                    ),
-                },
-            ),
-        ),
+        201: "문서 생성 성공",
         400: "Bad Request",
-        404: "Document Not Found",
         500: "Internal Server Error",
-    },
+    }
 )
-@api_view(["POST"])
-@permission_classes([IsAuthenticated]) #jwt 인증된 사람만 접근 가능
-def update_document(request, document_id):
-    try:
-        user = request.user
-        document = Document.objects.get(id = document_id, user_id = user)
-
-    except Document.DoesNotExist:
-        return JsonResponse({
-            "status": "error",
-            "message": "해당 user를 찾을 수 없습니다."
-        }, status=status.HTTP_404_NOT_FOUND)
-
-    try:
-        body = json.loads(request.body)
-        prompt_input = body.get("prompt")
-
-        if not prompt_input:
-            return JsonResponse({
-                "status": "error",
-                "message": "prompt 필드는 필수입니다."
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-    except Exception as e:
-        return JsonResponse({
-            "status": "error",
-            "message": "유효하지 않는 JSON 형식입니다."
-        }, status=status.HTTP_400_BAD_REQUEST)
-
-    prompt = f"""
-
-        기존 문서:
-            Title: {document.title}
-            Content: {document.content}
-            requirements: {document.requirements}
-
-            추가 요청:
-                {prompt_input}
-            위 내용을 기반으로 업데이트된 문서화 결과를 생성해주세요.    
-    """
-
-    try:
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": prompt}])
-
-        result = response.choices[0].message.content
-
-        document.result = result
-        document.save()
-
-        return JsonResponse({
-            "status": "success",
-            "data": {
-                "id": document.id,
-                "user_id": user.id,
-                "response": document.result
-            }
-        }, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return JsonResponse({
-            "status": "error",
-            "message": f"AI 호출 실패: {str(e)}"
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 @swagger_auto_schema(
-    method='get',
+    methods=['GET'],
     operation_summary="사용자 전체 문서 조회 API",
     responses={
         200: openapi.Response(
@@ -248,38 +62,198 @@ def update_document(request, document_id):
         500: "Internal Server Error",
     },
 )
-@api_view(["GET"])
+@api_view(["POST", "GET"])
 @permission_classes([IsAuthenticated])
-def search_document(request):
-    try:
-        user = request.user
-        documents = Document.objects.filter(user_id=user)
+def documents(request):
+    user = request.user
 
-        document_list = [
-            {
-                "id": document.id,
-                "title": document.title,
-                "response": document.result,
-            }
-            for document in documents
-        ]
+    if request.method == "POST":
+        # 문서 생성 로직
+        serializer = CreateDocumentSerializer(data=request.data)
 
-        return JsonResponse(
-            {
+        if serializer.is_valid():
+            try:
+                title = serializer.validated_data.get("title")
+                content = serializer.validated_data.get("content")
+                requirements = serializer.validated_data.get("requirements", "No requirements provided")
+
+                # DeepSeek API 호출을 위한 프롬프트 생성
+                prompt = f"""
+                            Title: {title}
+                            Content: {content}
+                            Requirements: {requirements}
+
+                            위 내용을 가지고 체계적인 문서화를 만들어주세요.
+                            방식은 
+                            Title: {title}
+                            Content: {content}
+                            Requirements: {requirements} 형식으로 체계적으로 다시 문서화 해주세요.
+
+                            1.해당 기능명세에 부가적인 설명도 짧게추가해주세요. 
+                            2.실제 현업자가 바로 사용할 수 있도록 쳬계적인 기능명세를 만들어주세요. 그리고 빠른 프롬프트를 위해 문서를 모듈화 해주세요.
+                            3.바로 제출할 수 있도록 실제 문서 내용"만" 출력해주세요.
+                        """
+
+
+                def event_stream():
+                    try:
+                        yield f"data: Review start.\n\n"
+                        time.sleep(1)
+
+                        review_result = call_deepseek_api(prompt)
+                        for line in review_result.split("\n"):
+                            yield f"data: {line}\n\n"
+                            time.sleep(0.5)
+
+                        yield f"data: Review completed.\n\n"
+                    except Exception as e:
+                        yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+
+                # DeepSeek API 호출 후 Document 저장
+                review_result = call_deepseek_api(prompt)
+                document = Document.objects.create(
+                    user_id=user,
+                    title=title,
+                    content=content,
+                    requirements=requirements,
+                    result=review_result
+                )
+                
+                # Project 모델에 사용자 및 프로젝트 이름 저장
+                project_name = title  # 프로젝트 이름을 title로 저장
+                project, created = Project.objects.get_or_create(
+                    user=user,
+                    name=project_name,
+                )
+
+                if created:
+                    print(f"프로젝트 '{project_name}'이(가) 생성되었습니다.")
+                else:
+                    print(f"기존 프로젝트 '{project_name}'을(를) 사용합니다.")
+
+                return StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+
+            except Exception as e:
+                return JsonResponse({
+                    "status": "error",
+                    "message": str(e)
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        else:
+            return JsonResponse({
+                "status": "error",
+                "errors": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == "GET":
+        # 문서 조회 로직
+        try:
+            documents = Document.objects.filter(user_id=user)
+
+            document_list = [
+                {
+                    "id": document.id,
+                    "title": document.title,
+                    "response": document.result,
+                }
+                for document in documents
+            ]
+
+            return JsonResponse({
                 "status": "success",
                 "data": document_list,
-            },
-            status=status.HTTP_200_OK,
-        )
+            }, status=200)
 
-    except Exception as e:
-        return JsonResponse(
-            {
+        except Exception as e:
+            return JsonResponse({
                 "status": "error",
                 "message": str(e),
-            },
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+            }, status=500)
+
+@swagger_auto_schema(
+    method='put',
+    operation_summary="문서 수정 API",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'prompt': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description="추가 요청 내용을 포함한 프롬프트"
+            ),
+        },
+        required=['prompt']  # prompt는 필수 항목
+    ),
+    responses={
+        200: openapi.Response(description="문서 수정 성공"),
+        400: "Bad Request",
+        404: "Document Not Found",
+        500: "Internal Server Error",
+    },
+)
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def update_document(request, document_id):
+    serializer = UpdateDocumentSerializer(data = request.data)
+
+    if serializer.is_valid():
+        try:
+            # 사용자 정보 확인
+            user = request.user
+            document = Document.objects.get(id = document_id, user_id = user)
+
+            prompt_input = serializer.validated_data.get("prompt")
+
+            # DeepSeek API 호출을 위한 프롬프트 생성
+            prompt = f"""
+                            Title: {document.title}
+                            Content: {document.content}
+                            Requirements: {document.requirements}
+
+                            위추가 요청:
+                            {prompt_input}
+                        1.기존 문서를 기준으로 추가 요청한 정보를 추가하여 체계적으로 다시 문서화 해주세요.
+                        2.해당 기능명세에 부가적인 설명도 추가해주세요. 
+                        3.실제 현업자가 바로 사용할 수 있도록 쳬계적인 기능명세를 만들어주세요. 그리고 빠른 프롬프트를 위해 해당 문서를 모듈화 해주세요.
+                        4.바로 제출할 수 있도록 실제 문서 내용"만" 출력해주세요.
+                        """
+
+            # DeepSeek API 호출 후 Document 저장
+            review_result = call_deepseek_api(prompt)
+
+            document.result = review_result
+            document.save()
+
+            def event_stream():
+                try:
+                    yield f"data: Review start.\n\n"
+
+                    for line in review_result.split("\n"):
+                        yield f"data: {line}\n\n"
+                        time.sleep(0.1)
+
+                    yield f"data: Review completed.\n\n"
+                except Exception as e:
+                    yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
+
+            return StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+
+        except Document.DoesNotExist:
+            return JsonResponse({
+                "status": "error",
+                "message": "문서를 찾을 수 없습니다."
+            }, status=404)
+
+        except Exception as e:
+            return JsonResponse({
+                "status": "error",
+                "message": str(e)
+            }, status=500)
+
+    else:
+        return JsonResponse({
+            "status": "error",
+            "errors": serializer.errors
+        }, status=400)
 
 @swagger_auto_schema(
     method = 'post',
@@ -362,6 +336,31 @@ def dev_document(request, document_id):
         "data": final_result,
     }, status = status.HTTP_200_OK)
 
+def call_deepseek_api(prompt):
+    api_url = "https://api.deepseek.com/v1/chat/completions"
+    api_key = settings.DEEPSEEK_API_KEY
+
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "stream": False
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    response = requests.post(api_url, json=payload, headers=headers)
+
+    if response.status_code == 200:
+        review_result = response.json()
+        return review_result['choices'][0]['message']['content']
+    else:
+        error_msg = response.json().get("error", "Unknown error occurred.")
+        raise Exception(f"DeepSeek API failed: {error_msg}")
 
 # SSL 인증서 파일 경로 설정
 os.environ["SSL_CERT_FILE"] = certifi.where()

@@ -59,7 +59,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 class Project(models.Model):
     id = models.AutoField(primary_key=True, verbose_name='프로젝트 아이디')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='projects', verbose_name='사용자 아이디')
-    repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='projects', verbose_name='레포지토리 아이디')
+    #repository = models.ForeignKey(Repository, on_delete=models.CASCADE, related_name='projects', verbose_name='레포지토리 아이디')
     name = models.CharField(max_length=20, verbose_name='프로젝트 이름')
     created_at = models.DateTimeField(default=timezone.now, verbose_name='생성일시')
     updated_at = models.DateTimeField(auto_now=True, null=True, blank=True, verbose_name='수정일시')

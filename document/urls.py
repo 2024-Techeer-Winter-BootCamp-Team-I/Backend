@@ -1,10 +1,9 @@
 
 from django.urls import path
-from document.views import create_document, update_document, dev_document, search_document
+from document.views import documents, update_document, dev_document
 
 urlpatterns = [
-    path('post', create_document, name = "create_document"),
-    path('<int:document_id>/update', update_document, name = "update_document"),
-    path('search', search_document, name = "search_document"),
-    path('<int:document_id>/post', dev_document, name = "dev_document")
+    path('', documents, name="documents"),
+    path('<int:document_id>', update_document, name = "update_document"),
+    path('<int:document_id>/design', dev_document, name = "dev_document")
 ]
