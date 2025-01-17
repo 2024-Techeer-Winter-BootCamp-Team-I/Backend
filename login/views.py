@@ -19,6 +19,7 @@ from rest_framework.permissions import AllowAny
 from login.serializers import LoginResponseSerializer
 from login.serializers import UserProfileSerializer
 from .models import Project
+from document.models import Document
 
 class LoginGithubView(APIView):
     permission_classes = [AllowAny]
@@ -278,3 +279,37 @@ class MyPageView(APIView):
             return response
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+class ProjectIDView(APIView):
+    def get(self, request, project_id):  # project_id를 경로 파라미터로 받음
+        try:
+            # 프로젝트 ID로 프로젝트 객체 가져오기
+            project = Project.objects.get(id=project_id)
+            # 프로젝트에서 사용자 ID 가져오기
+            user_id = project.user.id
+            project_name = project.name
+
+            # 사용자 ID와 프로젝트 이름으로 문서 필터링
+            matching_documents = Document.objects.filter(
+                user_id=user_id, title=project_name
+            ).values('title', 'erd_code', 'diagram_code')
+
+            if not matching_documents:
+                return Response(
+                    {"error": "해당 프로젝트 이름과 일치하는 문서를 찾을 수 없습니다."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            return Response(
+                {
+                    "project_id": project_id,
+                    "project_name": project_name,
+                    "documents": list(matching_documents)
+                },
+                status=status.HTTP_200_OK
+            )
+        except Project.DoesNotExist:
+            return Response(
+                {"error": "프로젝트를 찾을 수 없습니다."},
+                status=status.HTTP_404_NOT_FOUND
+            )
