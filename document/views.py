@@ -313,7 +313,7 @@ def dev_document(request, document_id):
         final_result = task_chord.get(timeout = 120)
 
         try:
-            redis_client.publish("task_updetes", f"Document {document_id} 작업 완료")
+            redis_client.publish("task_updates", f"Document {document_id} 작업 완료")
         except Exception as e:
             print(f"Redis publish 실패: {str(e)}")
 
