@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        repository = "sensesis/devsketch-backend"  //docker hub id와 repository 이름
+        repository = "sensesis/devsketch-backend1"  //docker hub id와 repository 이름
         DOCKERHUB_CREDENTIALS = credentials('docker-hub') // jenkins에 등록해 놓은 docker hub credentials 이름
         IMAGE_TAG = "" // docker image tag
     }
