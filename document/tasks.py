@@ -1,6 +1,7 @@
 import os
 
 import redis
+import requests
 from openai import OpenAI
 from celery import shared_task
 
@@ -9,10 +10,30 @@ redis_client = redis.StrictRedis(host = "redis", port = 6379, decode_responses =
 
 # DeepSeek API 설정
 api_key = os.environ.get("DEEPSEEK_API_KEY")
-base_url = os.environ.get("DEEPSEEK_API_URL")
+api_url = os.environ.get("DEEPSEEK_API_URL")
 
-# OpenAI 클라이언트 초기화
-client = OpenAI(api_key=api_key, base_url=base_url)
+def call_deepseek_api(prompt):
+
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False
+    }
+
+    header = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + api_key
+    }
+
+    response = requests.post(api_url, json = payload, headers = header)
+
+    if response.status_code == 200:
+        result = response.json()
+        return result["choices"][0]["message"]["content"]
+
+    else:
+        error_msg = response.json().get("error", "Unknown error occurred.")
+        raise Exception(f"DeepSeek API 호출 실패: {error_msg}")
 
 @shared_task
 def create_diagram(data):
@@ -26,15 +47,10 @@ def create_diagram(data):
         또한, 다른 부가설명말고 "mermaid 코드만" 출력해주세요.
     """
     try:
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        result = response.choices[0].message.content
+        result = call_deepseek_api(prompt)
         redis_client.publish(channel, "create_diagram 작업 완료")
-
         return result
+
     except Exception as e:
         redis_client.publish(channel, f"create_diagram 작업 실패: {e}")
         raise
@@ -52,15 +68,10 @@ def create_erd(data):
         또한, 다른 부가설명말고 "mermaid 코드만" 출력해주세요.
     """
     try:
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        result = response.choices[0].message.content
+        result = call_deepseek_api(prompt)
         redis_client.publish(channel, "create_diagram 작업 완료")
-
         return result
+
     except Exception as e:
         redis_client.publish(channel, f"create_erd 작업 실패: {e}")
         raise
@@ -78,15 +89,10 @@ def create_api(data):
         또한, 다른 부가설명말고 "swagger.json 코드만" 출력해주세요.
     """
     try:
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        result = response.choices[0].message.content
+        result = call_deepseek_api(prompt)
         redis_client.publish(channel, "create_diagram 작업 완료")
-
         return result
+
     except Exception as e:
         redis_client.publish(channel, f"create_api 작업 실패: {e}")
         raise
@@ -100,3 +106,5 @@ def collect_results(results):
         "erd": results[1],
         "api": results[2],
     }
+
+
