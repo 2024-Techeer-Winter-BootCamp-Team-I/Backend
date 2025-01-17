@@ -20,6 +20,8 @@ from .tasks import create_diagram, collect_results, create_erd, create_api, redi
 from document.models import Document
 from document.serializers import CreateDocumentSerializer, UpdateDocumentSerializer
 
+from login.models import Project
+
 openai.api_key = os.environ.get("DEEPSEEK_API_KEY")
 openai.api_base = os.environ.get("DEEPSEEK_API_URL")
 
@@ -77,20 +79,21 @@ def documents(request):
 
                 # DeepSeek API 호출을 위한 프롬프트 생성
                 prompt = f"""
-                               Title: {title}
-                               Content: {content}
-                               Requirements: {requirements}
+                            Title: {title}
+                            Content: {content}
+                            Requirements: {requirements}
 
-                               위 내용을 가지고 체계적인 문서화를 만들어주세요.
-                               방식은 
-                               Title: {title}
-                               Content: {content}
-                               Requirements: {requirements} 형식으로 체계적으로 다시 문서화 해주세요.
-                               
-                               1.해당 기능명세에 부가적인 설명도 짧게추가해주세요. 
-                               2.실제 현업자가 바로 사용할 수 있도록 쳬계적인 기능명세를 만들어주세요. 그리고 빠른 프롬프트를 위해 문서를 모듈화 해주세요.
-                               3.바로 제출할 수 있도록 실제 문서 내용"만" 출력해주세요.
-                           """
+                            위 내용을 가지고 체계적인 문서화를 만들어주세요.
+                            방식은 
+                            Title: {title}
+                            Content: {content}
+                            Requirements: {requirements} 형식으로 체계적으로 다시 문서화 해주세요.
+
+                            1.해당 기능명세에 부가적인 설명도 짧게추가해주세요. 
+                            2.실제 현업자가 바로 사용할 수 있도록 쳬계적인 기능명세를 만들어주세요. 그리고 빠른 프롬프트를 위해 문서를 모듈화 해주세요.
+                            3.바로 제출할 수 있도록 실제 문서 내용"만" 출력해주세요.
+                        """
+
 
                 def event_stream():
                     try:
@@ -115,6 +118,18 @@ def documents(request):
                     requirements=requirements,
                     result=review_result
                 )
+                
+                # Project 모델에 사용자 및 프로젝트 이름 저장
+                project_name = title  # 프로젝트 이름을 title로 저장
+                project, created = Project.objects.get_or_create(
+                    user=user,
+                    name=project_name,
+                )
+
+                if created:
+                    print(f"프로젝트 '{project_name}'이(가) 생성되었습니다.")
+                else:
+                    print(f"기존 프로젝트 '{project_name}'을(를) 사용합니다.")
 
                 return StreamingHttpResponse(event_stream(), content_type="text/event-stream")
 

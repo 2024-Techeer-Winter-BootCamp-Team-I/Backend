@@ -17,12 +17,14 @@ from rest_framework import status
 from django.db import transaction
 from rest_framework.permissions import AllowAny
 from login.serializers import LoginResponseSerializer
-
+from login.serializers import UserProfileSerializer
+from .models import Project
 
 class LoginGithubView(APIView):
     permission_classes = [AllowAny]
 
     @swagger_auto_schema(
+        operation_summary="깃허브 소셜로그인 API",  # Swagger UI에서 이 API의 간단한 설명
         responses={
             302: openapi.Response(
                 description="GitHub OAuth 로그인 페이지로 리다이렉트",
@@ -42,7 +44,10 @@ class LoginGithubView(APIView):
 
 class CodeView(APIView):
     permission_classes = [AllowAny]
-
+    
+    @swagger_auto_schema(
+        operation_summary="인가코드 확인 테스트 API",  # Swagger UI에서 이 API의 간단한 설명
+    )
     def get(self, request):
         # 콜백 URL에서 전달된 인증 코드를 가져옵니다.
         code = request.GET.get('code')
@@ -58,6 +63,7 @@ class LoginGithubCallbackView(APIView):
     permission_classes = [AllowAny]
     
     @swagger_auto_schema(
+        operation_summary="소셜로그인 후 콜백 API",
         manual_parameters=[
             openapi.Parameter(
                 'code',
@@ -199,3 +205,27 @@ class LoginGithubCallbackView(APIView):
             access_token=access_token
         ), True
         
+class MyPageView(APIView):
+    permission_classes = [IsAuthenticated]  # 로그인된 사용자만 접근 가능
+    
+    @swagger_auto_schema(
+        operation_summary="마이페이지 조회 API",  # Swagger UI에서 이 API의 간단한 설명
+        operation_description="로그인된 사용자의 GitHub 사용자명과 연관된 프로젝트 이름 목록을 반환합니다."  # 상세 설명
+    )
+    def get(self, request):
+        # 현재 로그인된 사용자 정보 가져오기
+        user = request.user
+
+        # 사용자와 연관된 프로젝트 이름 가져오기
+        projects = Project.objects.filter(user=user)  # Project는 사용자와 FK로 연결되어 있음
+        project_names = [project.name for project in projects]
+
+        # 사용자 정보 직렬화
+        data = {
+            "github_username": user.github_username,  # 사용자의 GitHub 이름
+            "project_names": project_names    # 사용자의 프로젝트 이름 목록
+        }
+        serializer = UserProfileSerializer(data)
+
+        # 응답 반환
+        return Response(serializer.data, status=status.HTTP_200_OK)
