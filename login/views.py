@@ -229,3 +229,52 @@ class MyPageView(APIView):
 
         # 응답 반환
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @swagger_auto_schema(
+        operation_summary="로그아웃",
+        operation_description="로그아웃을 처리합니다. 리프레시 토큰을 전송하여 토큰을 무효화하고 쿠키를 삭제합니다.",
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'refresh': openapi.Schema(type=openapi.TYPE_STRING, description='리프레시 토큰'),
+            },
+            required=['refresh'],
+        ),
+        responses={
+            200: openapi.Response(
+                description="로그아웃 성공",
+                examples={
+                    "application/json": {
+                        "message": "로그아웃 성공"
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="잘못된 요청",
+                examples={
+                    "application/json": {
+                        "error": "Refresh token is required"
+                    }
+                }
+            ),
+        }
+    )
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            if refresh_token:
+                token = RefreshToken(refresh_token)
+                token.blacklist()  # 토큰 무효화
+            else:
+                return Response({"error": "Refresh token is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+            # 쿠키 삭제
+            response = Response({
+                "message": "로그아웃 성공",
+                "logout_url": "https://github.com/logout?returnTo=http://localhost:5173/"  # GitHub 로그아웃 URL, 리다이렉트 url
+            }, status=status.HTTP_200_OK)
+            response.delete_cookie("jwt_access")
+            response.delete_cookie("refresh")
+            return response
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

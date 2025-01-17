@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'social_django',  # 소셜 인증 라이브러리
     'directory', # 초기 디렉터리 생성 
     'Tech_Stack',
+    'rest_framework_simplejwt.token_blacklist',  # 토큰 블랙리스트 앱 추가
 ]
 
 SITE_ID = 1
