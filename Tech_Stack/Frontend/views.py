@@ -3,15 +3,15 @@ from rest_framework.response import Response
 from rest_framework import status
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-import requests
 from django.conf import settings
 import os
 import shutil
+import requests
 
-class BackendSetupView(APIView):
+class FrontendSetupView(APIView):
     @swagger_auto_schema(
-        operation_summary='Backend 세팅 API',
-        operation_description="Create a new backend project with the selected tech stack",
+        operation_summary='Frontend 세팅 API',
+        operation_description="Create a new frontend project with the selected tech stack",
         request_body=openapi.Schema(
             type=openapi.TYPE_OBJECT,
             properties={
@@ -48,31 +48,41 @@ class BackendSetupView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # 2. 임시 디렉터리 생성
-            temp_dir = os.path.join("temp", f"my-{'-'.join(tech_stack_name)}-project")
+            # 2. 템플릿 디렉토리 경로 설정 
+            template_base_dir = os.path.join("/Backend", "Tech_Stack", "Frontend")
+            template_dir = os.path.join(template_base_dir, matching_template)
+            print(f"Frontend Template directory: {template_dir}")  # 디버깅용 로그
+
+            if not os.path.exists(template_dir):
+                return Response(
+                    {"error": f"템플릿 디렉토리를 찾을 수 없습니다: {template_dir}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # 3. 임시 디렉터리 생성
+            temp_dir = os.path.join(settings.BASE_DIR, "temp", f"my-{'-'.join(tech_stack_name)}-project")
             os.makedirs(temp_dir, exist_ok=True)
 
-            # 3. 템플릿 디렉터리 복사
-            template_dir = os.path.join("Backend", matching_template)
-            shutil.copytree(template_dir, os.path.join(temp_dir, "backend"))
+            # 4. 템플릿 디렉터리 복사
+            shutil.copytree(template_dir, os.path.join(temp_dir, "frontend"))
 
-            # 4. repo 앱의 create_repo 엔드포인트로 데이터 전달
+            # 5. repo 앱의 create_repo 엔드포인트로 데이터 전달
             repo_url = f"http://{settings.BACKEND_DOMAIN}/api/repo/create/"
             response = requests.post(
                 repo_url,
                 json={
                     "repo_name": f"my-{'-'.join(tech_stack_name)}-project",
-                    "backend_template": matching_template,  # 매칭된 템플릿 이름 전달
+                    "frontend_template": matching_template,  # 매칭된 템플릿 이름 전달
                     "private": False
                 },
                 headers={"Authorization": f"Bearer {request.auth}"}  # 인증 토큰 전달
             )
 
-            # 5. repo 앱의 응답을 그대로 반환
+            # 6. repo 앱의 응답을 그대로 반환
             return Response(response.json(), status=response.status_code)
 
         except Exception as e:
-            print(e)
+            print(f"Error: {e}")
             return Response(
                 {"error": "Failed to create project"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -83,8 +93,8 @@ class BackendSetupView(APIView):
         사용자가 입력한 기술 스택을 기반으로 적절한 템플릿을 찾습니다.
         """
         templates = [
-            "django-rest-framework",
-            "node-express",
+            "React",
+            "Vue",
         ]
 
         # 기술 스택을 기반으로 템플릿 선택
@@ -93,3 +103,11 @@ class BackendSetupView(APIView):
                 return template
 
         return None  # 매칭되는 템플릿이 없는 경우
+
+
+class FrontendView(APIView):
+    def get(self, request, *args, **kwargs):
+        """
+        프론트엔드 뷰를 반환합니다.
+        """
+        return Response({"message": "프론트엔드 뷰에 접근했습니다."}, status=status.HTTP_200_OK)
