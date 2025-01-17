@@ -94,23 +94,20 @@ def documents(request):
                             3.바로 제출할 수 있도록 실제 문서 내용"만" 출력해주세요.
                         """
 
-
+                review_result = call_deepseek_api(prompt)
                 def event_stream():
                     try:
                         yield f"data: Review start.\n\n"
                         time.sleep(1)
 
-                        review_result = call_deepseek_api(prompt)
-                        for line in review_result.split("\n"):
-                            yield f"data: {line}\n\n"
-                            time.sleep(0.5)
+                        for char in review_result:
+                            yield f"data: {char}\n\n"
+                            time.sleep(0.05)
 
                         yield f"data: Review completed.\n\n"
                     except Exception as e:
                         yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
 
-                # DeepSeek API 호출 후 Document 저장
-                review_result = call_deepseek_api(prompt)
                 document = Document.objects.create(
                     user_id=user,
                     title=title,
@@ -226,10 +223,11 @@ def update_document(request, document_id):
             def event_stream():
                 try:
                     yield f"data: Review start.\n\n"
+                    time.sleep(1)
 
-                    for line in review_result.split("\n"):
-                        yield f"data: {line}\n\n"
-                        time.sleep(0.1)
+                    for char in review_result:
+                        yield f"data: {char}\n\n"
+                        time.sleep(0.05)
 
                     yield f"data: Review completed.\n\n"
                 except Exception as e:
