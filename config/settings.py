@@ -43,8 +43,6 @@ INSTALLED_APPS = [
     'django_celery_results',
     'rest_framework_simplejwt',  # JWT 토큰 라이브러리
     'social_django',  # 소셜 인증 라이브러리
-    'Tech_Stack.Frontend',  # 프론트엔드 앱 
-    'Tech_Stack.Backend',  # 백엔드 앱앱
     'directory', # 초기 디렉터리 생성 
     'Tech_Stack',
 ]
