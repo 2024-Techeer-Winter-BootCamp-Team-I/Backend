@@ -35,7 +35,7 @@ services:
       - DevSketch-Net
     restart: always
     command: >
-      sh -c "gunicorn --bind 0.0.0.0:8000 config.wsgi:application --timeout 120"
+      sh -c "gunicorn --bind 0.0.0.0:8000 config.wsgi:application --timeout 300"
 
   redis:
     image: redis:7.0
