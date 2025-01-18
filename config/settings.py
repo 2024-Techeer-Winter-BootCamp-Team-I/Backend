@@ -43,7 +43,6 @@ INSTALLED_APPS = [
     'django_celery_results',
     'rest_framework_simplejwt',  # JWT 토큰 라이브러리
     'social_django',  # 소셜 인증 라이브러리
-    'directory', # 초기 디렉터리 생성 
     'Tech_Stack',
 ]
 
@@ -239,3 +238,22 @@ ALLOWED_HOSTS = ['devsketch.site', 'www.devsketch.site', 'localhost', '127.0.0.1
 #deepseek 키
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 DEEPSEEK_API_URL = os.getenv('DEEPSEEK_API_URL')
+
+BACKEND_DOMAIN = 'localhost:8000'
+
+# # 배포환경에서는 아래
+# BACKEND_DOMAIN = 'devsketch.site'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
