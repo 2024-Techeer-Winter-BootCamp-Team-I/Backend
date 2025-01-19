@@ -129,10 +129,8 @@ class LoginGithubCallbackView(APIView):
         password = 1234
         # 사용자 생성 또는 가져오기
         user, created = self.social_user_get_or_create(
-            github_id=user_data["id"],
             github_username=user_data["login"],
             email=primary_email,  # GitHub에서 가져온 이메일 또는 임시 이메일 사용
-            password=password,
             profile_image=user_data["avatar_url"],
             access_token=access_token
         )
@@ -170,15 +168,13 @@ class LoginGithubCallbackView(APIView):
 
 
     @transaction.atomic
-    def social_user_create(self, github_id, github_username, email, password, access_token, profile_image=None):
+    def social_user_create(self, github_username, email, access_token, profile_image=None):
         """
         새로운 사용자를 생성합니다.
         """
         user = User(
-            github_id=github_id,
             github_username=github_username,
             email = email,
-            password=password,
             profile_image=profile_image,
             access_token=access_token
         )
@@ -189,20 +185,18 @@ class LoginGithubCallbackView(APIView):
 
 
     @transaction.atomic
-    def social_user_get_or_create(self, github_id, github_username, email, password, access_token, profile_image=None):
+    def social_user_get_or_create(self, github_username, email, access_token, profile_image=None):
         """
         GitHub ID를 기준으로 User를 가져오거나 새로 생성합니다.
         """
-        user = User.objects.filter(github_id=github_id).first()
+        user = User.objects.filter(github_username=github_username).first()
 
         if user:
             return user, False
 
         return self.social_user_create(
-            github_id=github_id,
             github_username=github_username,
             email=email,
-            password=password,
             profile_image=profile_image,
             access_token=access_token
         ), True
