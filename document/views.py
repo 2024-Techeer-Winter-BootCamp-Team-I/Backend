@@ -102,7 +102,7 @@ def documents(request):
 
                         for char in review_result:
                             yield f"data: {char}\n\n"
-                            time.sleep(0.05)
+                            time.sleep(0)
 
                         yield f"data: Review completed.\n\n"
                     except Exception as e:
@@ -227,7 +227,7 @@ def update_document(request, document_id):
 
                     for char in review_result:
                         yield f"data: {char}\n\n"
-                        time.sleep(0.05)
+                        time.sleep(0)
 
                     yield f"data: Review completed.\n\n"
                 except Exception as e:
