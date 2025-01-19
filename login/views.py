@@ -1,3 +1,6 @@
+import os
+import requests
+
 from django.shortcuts import render, redirect
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
@@ -10,8 +13,6 @@ from django.http import JsonResponse
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.authentication import TokenAuthentication
 from social_django.models import UserSocialAuth  # UserSocialAuth 모델 임포트
-import os
-import requests
 from dotenv import load_dotenv
 from rest_framework import status
 from django.db import transaction

@@ -39,11 +39,11 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',  # GitHub 소셜 로그인 제공자 추가
     'login.apps.LoginConfig',  # 로그인 앱
     'document',  # 문서 앱
-    'repo.apps.RepoConfig',  # repo 앱
+    'repo.apps.RepoConfig',  # 레포지토리리 앱
     'django_celery_results',
     'rest_framework_simplejwt',  # JWT 토큰 라이브러리
     'social_django',  # 소셜 인증 라이브러리
-    'Tech_Stack',
+    'Tech_Stack', # 기술 스택 관련 앱앱
     'rest_framework_simplejwt.token_blacklist',  # 토큰 블랙리스트 앱 추가
 ]
 
@@ -240,9 +240,10 @@ ALLOWED_HOSTS = ['devsketch.site', 'www.devsketch.site', 'localhost', '127.0.0.1
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 DEEPSEEK_API_URL = os.getenv('DEEPSEEK_API_URL')
 
+# 로컬 환경
 BACKEND_DOMAIN = 'localhost:8000'
 
-# # 배포환경에서는 아래
+# 배포 환경에서는 아래
 # BACKEND_DOMAIN = 'devsketch.site'
 
 LOGGING = {
