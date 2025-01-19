@@ -1,5 +1,5 @@
 {
-  "name": "node",
+  "name": "node.js_postgresql",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -11,8 +11,5 @@
   "description": "",
   "dependencies": {
     "express": "^4.21.2"
-  },
-  "scripts": {
-  "start": "node index.js"
   }
 }
