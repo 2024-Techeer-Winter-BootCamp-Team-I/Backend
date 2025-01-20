@@ -9,6 +9,8 @@ import logging
 from .tasks import copy_and_push_to_github
 from login.models import Project
 from celery.result import AsyncResult
+from .models import Repository
+from django.utils import timezone
 
 # User 모델 가져오기
 User = get_user_model()
@@ -126,6 +128,15 @@ def create_repo(request):
 
         # 태스크 완료 대기
         task.wait()
+
+        # Repository 모델에 데이터 저장
+        Repository.objects.create(
+            name=repo_name,
+            url=task.result,  # Celery 태스크에서 반환된 레포지토리 URL
+            created_at=timezone.now(),
+            updated_at=timezone.now(),
+            deleted_at=None
+        )
 
         # 성공 응답
         return Response({
