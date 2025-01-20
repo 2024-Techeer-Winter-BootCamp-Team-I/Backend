@@ -362,7 +362,7 @@ os.environ["SSL_CERT_FILE"] = certifi.where()
 
 @swagger_auto_schema(
     method='post',
-    operation_summary="문서 파트 저장 API",
+    operation_summary="설계 파트 저장 API",
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
@@ -397,11 +397,11 @@ os.environ["SSL_CERT_FILE"] = certifi.where()
             }
         ),
         404: openapi.Response(
-            description="문서가 없음",
+            description="설계 문서가 없음",
             examples={
                 "application/json": {
                     "status": "error",
-                    "message": "문서를 찾을 수 없습니다."
+                    "message": "설계 문서를 찾을 수 없습니다."
                 }
             }
         ),
@@ -449,5 +449,5 @@ def save_document_part(request, document_id):
     except Document.DoesNotExist:
         return JsonResponse({
             "status": "error",
-            "message": "문서를 찾을 수 없습니다."
+            "message": "설계 문서를 찾을 수 없습니다."
         }, status=404)
