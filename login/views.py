@@ -277,6 +277,46 @@ class MyPageView(APIView):
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
 class ProjectIDView(APIView):
+    permission_classes = [IsAuthenticated]  # 로그인된 사용자만 접근 가능
+    
+    @swagger_auto_schema(
+        operation_summary="프로젝트 상세 조회 API",
+        operation_description="로그인된 사용자가 소유한 프로젝트의 이름과 관련된 저장된 문서를 조회합니다.",
+        responses={
+            200: openapi.Response(
+                description="프로젝트 조회 성공",
+                examples={
+                    "application/json": {
+                        "project_id": 1,
+                        "project_name": "Sample Project",
+                        "documents": [
+                            {
+                                "title": "Sample Document 1",
+                                "erd_code": "example_erd_code",
+                                "diagram_code": "example_diagram_code"
+                            }
+                        ]
+                    }
+                }
+            ),
+            404: openapi.Response(
+                description="프로젝트를 찾을 수 없음",
+                examples={
+                    "application/json": {
+                        "error": "프로젝트를 찾을 수 없습니다."
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="잘못된 요청",
+                examples={
+                    "application/json": {
+                        "error": "저장된 문서를 찾을 수 없습니다."
+                    }
+                }
+            ),
+        }
+    )
     def get(self, request, project_id):  # project_id를 경로 파라미터로 받음
         try:
             # 프로젝트 ID로 프로젝트 객체 가져오기
@@ -305,6 +345,64 @@ class ProjectIDView(APIView):
                     "project_name": project_name,
                     "documents": list(matching_documents)
                 },
+                status=status.HTTP_200_OK
+            )
+        except Project.DoesNotExist:
+            return Response(
+                {"error": "프로젝트를 찾을 수 없습니다."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @swagger_auto_schema(
+        operation_summary="프로젝트 삭제 API",
+        operation_description="로그인된 사용자가 소유한 프로젝트를 삭제합니다. 해당 프로젝트와 관련된 모든 문서도 삭제됩니다.",
+        responses={
+            200: openapi.Response(
+                description="프로젝트 삭제 성공",
+                examples={
+                    "application/json": {
+                        "message": "프로젝트 삭제 성공"
+                    }
+                }
+            ),
+            404: openapi.Response(
+                description="프로젝트를 찾을 수 없음",
+                examples={
+                    "application/json": {
+                        "error": "프로젝트를 찾을 수 없습니다."
+                    }
+                }
+            ),
+            400: openapi.Response(
+                description="잘못된 요청",
+                examples={
+                    "application/json": {
+                        "error": "해당 사용자가 아닌 다른 사용자의 프로젝트는 삭제할 수 없습니다."
+                    }
+                }
+            ),
+        }
+    )
+    def delete(self, request, project_id):
+        try:
+            # 프로젝트 객체 가져오기
+            project = Project.objects.get(id=project_id)
+
+            # 프로젝트가 로그인된 사용자의 것인지 확인
+            if project.user != request.user:
+                return Response(
+                    {"error": "해당 사용자가 아닌 다른 사용자의 프로젝트는 삭제할 수 없습니다."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # 프로젝트와 관련된 모든 문서 삭제
+            Document.objects.filter(user_id=request.user, title=project.name).delete()
+
+            # 프로젝트 삭제
+            project.delete()
+
+            return Response(
+                {"message": "프로젝트 삭제 성공"},
                 status=status.HTTP_200_OK
             )
         except Project.DoesNotExist:
