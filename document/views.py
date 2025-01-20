@@ -97,14 +97,11 @@ def documents(request):
                 review_result = call_deepseek_api(prompt)
                 def event_stream():
                     try:
-                        yield f"data: Review start.\n\n"
-                        time.sleep(1)
-
                         for char in review_result:
                             yield f"data: {char}\n\n"
-                            time.sleep(0)
 
-                        yield f"data: Review completed.\n\n"
+                            time.sleep(0.01)
+
                     except Exception as e:
                         yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
 
