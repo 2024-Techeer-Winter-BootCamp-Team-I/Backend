@@ -257,14 +257,14 @@ def update_document(request, document_id):
         openapi.Parameter(
             'document_id',
             openapi.IN_PATH,
-            description = "생성할 문서의 ID",
+            description = "생성할 설계 문서의 ID",
             type = openapi.TYPE_STRING,
             required = True,
         ),
     ],
     responses = {
         200: openapi.Response(
-            description="문서 생성 성공",
+            description="설계 생성 성공",
             schema=openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
@@ -272,7 +272,7 @@ def update_document(request, document_id):
                     "data": openapi.Schema(
                         type=openapi.TYPE_OBJECT,
                         properties={
-                            "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="문서 ID"),
+                            "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="설계 문서 ID"),
                             "response": openapi.Schema(type=openapi.TYPE_STRING, description="AI 처리 결과"),
                         },
                     ),
@@ -294,7 +294,7 @@ def dev_document(request, document_id):
     except Document.DoesNotExist:
         return Response({
             "status": "error",
-            "message": "해당 문서를 찾을 수 없습니다."
+            "message": "해당 설계 문서를 찾을 수 없습니다."
         }, status=status.HTTP_404_NOT_FOUND)
 
     # chord 병렬 작업 실행(모두 완료되면 콜백)
