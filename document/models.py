@@ -22,6 +22,10 @@ class Document(models.Model):
     diagram_code = models.TextField()
     erd_code = models.TextField()
     api_code = models.TextField()
+    
+    is_diagram_saved = models.BooleanField(default=False)
+    is_erd_saved = models.BooleanField(default=False)
+    is_api_saved = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

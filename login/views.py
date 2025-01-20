@@ -21,6 +21,7 @@ from login.serializers import LoginResponseSerializer
 from login.serializers import UserProfileSerializer
 from .models import Project
 from document.models import Document
+from django.db.models import Q
 
 class LoginGithubView(APIView):
     permission_classes = [AllowAny]
@@ -284,14 +285,17 @@ class ProjectIDView(APIView):
             user_id = project.user.id
             project_name = project.name
 
-            # 사용자 ID와 프로젝트 이름으로 문서 필터링
+            # 사용자 ID와 프로젝트 이름으로 문서 필터링 (하나라도 저장된 상태만 필터링)
             matching_documents = Document.objects.filter(
-                user_id=user_id, title=project_name
+                user_id=user_id,
+                title=project_name
+            ).filter(
+                Q(is_diagram_saved=True) | Q(is_erd_saved=True) | Q(is_api_saved=True)  # 하나라도 저장된 상태
             ).values('title', 'erd_code', 'diagram_code')
 
             if not matching_documents:
                 return Response(
-                    {"error": "해당 프로젝트 이름과 일치하는 문서를 찾을 수 없습니다."},
+                    {"error": "저장된 문서가 없습니다."},
                     status=status.HTTP_404_NOT_FOUND
                 )
 

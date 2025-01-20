@@ -362,3 +362,95 @@ def call_deepseek_api(prompt):
 
 # SSL 인증서 파일 경로 설정
 os.environ["SSL_CERT_FILE"] = certifi.where()
+
+@swagger_auto_schema(
+    method='post',
+    operation_summary="문서 파트 저장 API",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "parts": openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    enum=["diagram", "erd", "api"]  # 가능한 값 지정
+                ),
+                description="저장할 파트들 (diagram, erd, api 중 하나 이상)"
+            ),
+        },
+        required=["parts"]  # parts는 필수 항목
+    ),
+    responses={
+        200: openapi.Response(
+            description="저장 성공",
+            examples={
+                "application/json": {
+                    "status": "success",
+                    "message": "diagram, erd 저장 완료"
+                }
+            }
+        ),
+        400: openapi.Response(
+            description="잘못된 요청",
+            examples={
+                "application/json": {
+                    "status": "error",
+                    "message": "Invalid parts specified."
+                }
+            }
+        ),
+        404: openapi.Response(
+            description="문서가 없음",
+            examples={
+                "application/json": {
+                    "status": "error",
+                    "message": "문서를 찾을 수 없습니다."
+                }
+            }
+        ),
+    }
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def save_document_part(request, document_id):
+    try:
+        document = Document.objects.get(id=document_id, user_id=request.user)
+        parts = request.data.get("parts", [])  # ["diagram", "erd", "api"]
+
+        # parts가 배열인지 확인
+        if not isinstance(parts, list):
+            return JsonResponse({
+                "status": "error",
+                "message": "parts는 리스트여야 합니다."
+            }, status=400)
+
+        valid_parts = {"diagram", "erd", "api"}
+        invalid_parts = [part for part in parts if part not in valid_parts]
+
+        # 유효하지 않은 값이 있으면 에러 반환
+        if invalid_parts:
+            return JsonResponse({
+                "status": "error",
+                "message": f"Invalid parts specified: {', '.join(invalid_parts)}"
+            }, status=400)
+
+        # 각각의 파트를 저장
+        if "diagram" in parts:
+            document.is_diagram_saved = True
+        if "erd" in parts:
+            document.is_erd_saved = True
+        if "api" in parts:
+            document.is_api_saved = True
+
+        document.save()
+
+        return JsonResponse({
+            "status": "success",
+            "message": f"{', '.join(parts)} 저장 완료"
+        }, status=200)
+
+    except Document.DoesNotExist:
+        return JsonResponse({
+            "status": "error",
+            "message": "문서를 찾을 수 없습니다."
+        }, status=404)
