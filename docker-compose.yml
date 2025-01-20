@@ -18,6 +18,7 @@ services:
       context: ../Backend
     volumes:
       - static_volume:/Backend/static
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8000:8000"
     environment:
@@ -36,6 +37,10 @@ services:
     restart: always
     command: >
       sh -c "gunicorn --bind 0.0.0.0:8000 config.wsgi:application --timeout 300"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`backend.localhost`)"  # 백틱으로 수정
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
 
   redis:
     image: redis:7.0
@@ -76,6 +81,21 @@ services:
     networks:
       - DevSketch-Net
 
+  traefik:
+    image: traefik:v2.9
+    container_name: DevSketch-Traefik
+    command:
+      - "--api.insecure=true"  # Traefik 대시보드 활성화 (개발 환경에서만 사용)
+      - "--providers.docker=true"  # Docker를 라우팅 소스로 사용
+      - "--entrypoints.web.address=:80"  # HTTP 엔트리포인트 설정
+    ports:
+      - "80:80"  # Traefik이 80번 포트를 통해 요청 처리
+      - "8080:8080"  # Traefik 대시보드
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"  # Docker와 통신
+    networks:
+      - DevSketch-Net
+
 volumes:
   db_data:
   static_volume:
@@ -83,3 +103,4 @@ volumes:
 networks:
   DevSketch-Net:
     driver: bridge
+

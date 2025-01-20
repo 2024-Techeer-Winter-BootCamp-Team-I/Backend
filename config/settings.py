@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'social_django',  # 소셜 인증 라이브러리
     'Tech_Stack', # 기술 스택 관련 앱앱
     'rest_framework_simplejwt.token_blacklist',  # 토큰 블랙리스트 앱 추가
+    'dind'
 ]
 
 SITE_ID = 1

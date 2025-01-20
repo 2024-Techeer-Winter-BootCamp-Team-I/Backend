@@ -32,6 +32,7 @@ urlpatterns = [
         path('accounts/', include('allauth.urls')),  # allauth URL 추가
         path("repos/", include('repo.urls')),  # 레포지토리 관련 URL
         path('tech-stack/', include('Tech_Stack.urls')),  # Tech_Stack 앱 URL 추가
+        path("dinds/", include('dind.urls'))
     ])),
     
 ]
