@@ -2,16 +2,27 @@ pipeline {
     agent any
 
     environment {
-        repository = "sensesis/devsketch-backend1"  //docker hub id와 repository 이름
-        DOCKERHUB_CREDENTIALS = credentials('docker-hub') // jenkins에 등록해 놓은 docker hub credentials 이름
-        IMAGE_TAG = "" // docker image tag
+        backend_repository = "sensesis/devsketch-backend1" // Docker Hub ID와 repository 이름
+        DOCKERHUB_CREDENTIALS = credentials('docker-hub') // Jenkins에 등록해 놓은 Docker Hub credentials 이름
+        IMAGE_TAG = "" // Docker image tag
+        DOCKER_COMPOSE_FILE = 'docker-compose.yml'
+        ENV_FILE = 'env-file'
     }
 
     stages {
         stage('Checkout') {
             steps {
-		            cleanWs() //워크스페이스 청소
-                git branch: 'develop', url: "https://github.com/2024-Techeer-Winter-BootCamp-Team-I/Backend.git"
+                cleanWs() // 워크스페이스 청소
+                git branch: 'develop', url: 'https://github.com/2024-Techeer-Winter-BootCamp-Team-I/Backend.git'
+            }
+        }
+
+        stage('Copy .env') {
+            steps {
+                withCredentials([file(credentialsId: "${ENV_FILE}", variable: 'ENV_FILE_PATH')]) {
+                    sh 'cp $ENV_FILE_PATH .env'
+                    sh 'ls -la ${WORKSPACE}'
+                }
             }
         }
 
@@ -41,9 +52,9 @@ pipeline {
         stage('Building our image') {
             steps {
                 script {
-                    sh "docker build -t ${repository}:${IMAGE_TAG} ." // docker build
+                    sh "docker build --memory=2g -t ${backend_repository}:${IMAGE_TAG} -f Dockerfile-dev ." // 메모리 사용을 2GB로 제한
                 }
-                //slackSend message: "Build Started - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
+                slackSend message: "Build Started - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
             }
         }
 
@@ -56,14 +67,14 @@ pipeline {
         stage('Deploy our image') {
             steps {
                 script {
-                    sh "docker push ${repository}:${IMAGE_TAG}" // docker push
+                    sh "docker push ${backend_repository}:${IMAGE_TAG}" // docker push
                 }
             }
         }
 
         stage('Cleaning up') {
             steps {
-                sh "docker rmi ${repository}:${IMAGE_TAG}" // docker image 제거
+                sh "docker rmi ${backend_repository}:${IMAGE_TAG}" // docker image 제거
             }
         }
     }
@@ -71,11 +82,11 @@ pipeline {
     post {
         success {
             echo 'Build and deployment successful!'
-            //slackSend message: "Build deployed successfully - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
+            slackSend message: "Build deployed successfully - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
         }
         failure {
             echo 'Build or deployment failed.'
-            //slackSend failOnError: true, message: "Build failed  - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
+            slackSend failOnError: true, message: "Build failed  - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
         }
     }
 }
