@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-		            cleanWs()
+		        cleanWs()
                 git branch: 'develop', url: "https://github.com/2024-Techeer-Winter-BootCamp-Team-I/Backend.git"
             }
         }
