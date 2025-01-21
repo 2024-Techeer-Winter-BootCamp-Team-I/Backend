@@ -243,8 +243,8 @@ SWAGGER_SETTINGS = {
 }
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ORIGIN_WHITELIST = [
-    'http://localhost:8000',  # 클라이언트 주소
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # 클라이언트 도메인
 ]
 
 SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_CLIENT_ID')  # GitHub OAuth App의 Client ID
