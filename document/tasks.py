@@ -2,7 +2,6 @@ import os
 
 import redis
 import requests
-from openai import OpenAI
 from celery import shared_task
 
 #Redis 클라이언트 생성

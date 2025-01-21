@@ -45,7 +45,29 @@ INSTALLED_APPS = [
     'social_django',  # 소셜 인증 라이브러리
     'Tech_Stack', # 기술 스택 관련 앱앱
     'rest_framework_simplejwt.token_blacklist',  # 토큰 블랙리스트 앱 추가
-    'dind'
+    'dind',
+    'corsheaders'
+
+]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://0.0.0.0:8000",
+    "http://localhost",
+    "http://localhost:5173",
+    "http://django:8000"
+]
+
+CORS_ALLOW_HEADERS = [
+    'authorization',
+    'x-password',
+    'content-type',
+    'x-csrftoken',
+    'accept',
+    'origin',
+    'user-agent',
+    'access-control-allow-origin',
 ]
 
 SITE_ID = 1
