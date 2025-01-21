@@ -47,9 +47,14 @@ pipeline {
             }
         }
 
-        stage('Login'){
-            steps{
-                sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin" // docker hub 로그인
+        stage('Login') {
+            steps {
+                script {
+                    // Jenkins Credentials를 사용한 안전한 Docker Hub 로그인
+                    sh """
+                    echo '${DOCKERHUB_TOKEN}' | docker login -u '${DOCKERHUB_CREDENTIALS_USR}' --password-stdin
+                    """
+                }
             }
         }
 
