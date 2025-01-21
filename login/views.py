@@ -162,8 +162,10 @@ class LoginGithubCallbackView(APIView):
         res["Authorization"] = f"Bearer {jwt_access_token}"
 
         # 토큰을 쿠키에 저장
-        res.set_cookie("jwt_access", jwt_access_token, httponly=True)
-        res.set_cookie("refresh", refresh_token, httponly=True)
+        # 클라이언트와 동일한 도메인으로 설정
+        # 다른 도메인 간 쿠키 공유 허용
+        res.set_cookie("jwt_access",jwt_access_token,httponly=True,domain="localhost",samesite="None",secure=False)
+        res.set_cookie("refresh", refresh_token, httponly=True,domain="localhost",samesite="None",secure=False)
 
         return res
 
