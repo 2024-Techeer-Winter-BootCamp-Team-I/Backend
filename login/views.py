@@ -262,7 +262,7 @@ class MyPageView(APIView):
     )
     def post(self, request):
         try:
-            refresh_token = request.data.get("refresh")
+            refresh_token = request.COOKIES.get('refresh')
             if refresh_token:
                 token = RefreshToken(refresh_token)
                 token.blacklist()  # 토큰 무효화
