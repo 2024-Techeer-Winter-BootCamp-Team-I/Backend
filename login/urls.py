@@ -8,4 +8,5 @@ urlpatterns = [
     path('profile',views.MyPageView.as_view(),name='mypage_view'),
     path('profile/<int:project_id>',views.ProjectIDView.as_view(),name='project_id_view'),
     path('details',views.UserDetailsView.as_view(),name='user_datails_view'),
+    path('refresh',views.RefreshTokenView.as_view(),name='refresh_token_view'),
 ]

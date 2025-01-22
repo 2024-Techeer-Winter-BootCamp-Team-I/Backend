@@ -449,3 +449,36 @@ class UserDetailsView(APIView):
             "profile_image": user.profile_image,
         }
         return Response(data, status=status.HTTP_200_OK)
+    
+class RefreshTokenView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'refresh_token': openapi.Schema(type=openapi.TYPE_STRING, description='Refresh token')
+            }
+        )
+    )
+    def post(self, request):
+        # 쿠키에서 리프레시 토큰을 가져옵니다.
+        refresh_token = request.COOKIES.get('refresh_token')  # 쿠키에서 리프레시 토큰 가져오기
+        
+        if not refresh_token:
+            return Response({"error": "Refresh token을 제공해야 합니다."}, status=400)
+
+        try:
+            # 리프레시 토큰을 사용하여 새 액세스 토큰 발급
+            refresh = RefreshToken(refresh_token)
+            jwt_access_token = str(refresh.access_token)
+
+            # 새 액세스 토큰을 쿠키에 저장
+            res = Response({"access_token": jwt_access_token})
+
+            # 새 액세스 토큰을 쿠키에 설정
+            res.set_cookie("jwt_access",jwt_access_token,httponly=True,samesite="Lax",secure=False)
+            return res
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)
