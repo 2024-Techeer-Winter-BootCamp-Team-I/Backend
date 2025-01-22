@@ -7,4 +7,5 @@ urlpatterns = [
     path('code/view',views.CodeView.as_view(),name='code_view'),
     path('profile',views.MyPageView.as_view(),name='mypage_view'),
     path('profile/<int:project_id>',views.ProjectIDView.as_view(),name='project_id_view'),
+    path('details',views.UserDetailsView.as_view(),name='user_datails_view'),
 ]
