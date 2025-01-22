@@ -43,7 +43,7 @@ class LoginGithubView(APIView):
     )
     def get(self, request):
         # 깃허브 oauth2 로그인 페이지로 리다이렉트
-        github_oauth_url = f"https://github.com/login/oauth/authorize?client_id={os.getenv('GITHUB_CLIENT_ID')}&redirect_uri={os.getenv('GITHUB_REDIRECT_URI')}&scope=repo,read:org,public_repo,write:discussion"
+        github_oauth_url = f"https://github.com/login/oauth/authorize?client_id={os.getenv('GITHUB_CLIENT_ID')}&redirect_uri={os.getenv('GITHUB_REDIRECT_URI')}&scope=repo"
         return redirect(github_oauth_url)
 
 class CodeView(APIView):
