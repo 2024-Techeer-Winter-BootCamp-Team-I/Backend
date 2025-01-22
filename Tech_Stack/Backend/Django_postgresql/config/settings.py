@@ -75,8 +75,12 @@ WSGI_APPLICATION = 'Django_postgresql.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',  # PostgreSQL 엔진 사용
+        'NAME': 'mydatabase',  # 데이터베이스 이름
+        'USER': 'myuser',  # 데이터베이스 사용자
+        'PASSWORD': 'mypassword',  # 데이터베이스 비밀번호
+        'HOST': 'db',  # Docker Compose에서 정의한 PostgreSQL 서비스 이름
+        'PORT': '5432',  # PostgreSQL 기본 포트
     }
 }
 
