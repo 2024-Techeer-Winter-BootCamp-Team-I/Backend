@@ -414,3 +414,38 @@ class ProjectIDView(APIView):
                 {"error": "프로젝트를 찾을 수 없습니다."},
                 status=status.HTTP_404_NOT_FOUND
             )
+            
+class UserDetailsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="사용자 정보 조회 API",
+        responses={
+            200: openapi.Response(
+                description="사용자 정보 조회 성공",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "username": openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="GitHub 사용자 이름"
+                        ),
+                        "profile_image": openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="GitHub 사용자 프로필 이미지 URL"
+                        ),
+                    },
+                ),
+            ),
+            401: openapi.Response(
+                description="인증 실패 (JWT 토큰 누락 또는 유효하지 않음)"
+            ),
+        },
+    )
+    def get(self, request):
+        user = request.user
+        data = {
+            "username": user.github_username,
+            "profile_image": user.profile_image,
+        }
+        return Response(data, status=status.HTTP_200_OK)
