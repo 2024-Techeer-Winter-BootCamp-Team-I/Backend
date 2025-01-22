@@ -292,3 +292,15 @@ LOGGING = {
 # 프로젝트 파일 저장 경로
 PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
 os.makedirs(PROJECTS_DIR, exist_ok=True)
+
+if os.getenv('ENVIRONMENT') == 'prod':
+    # HTTPS 인식 설정
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+else:
+    SECURE_PROXY_SSL_HEADER = None
+    SECURE_SSL_REDIRECT = False
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
