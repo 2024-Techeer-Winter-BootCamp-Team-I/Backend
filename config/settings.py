@@ -196,12 +196,13 @@ SOCIALACCOUNT_PROVIDERS = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT 토큰 인증
+        'login.authentication.CookieJWTAuthentication',  # 커스텀 인증 클래스
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # 필요 시 헤더 인증
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        #'rest_framework.permissions.IsAuthenticated',  # 인증된 사용자만 허용
-        'rest_framework.permissions.AllowAny', 
-    ]
+        'rest_framework.permissions.IsAuthenticated',  # 인증된 사용자만 허용
+    ],
+    # 기타 설정들...
 }
 
 AUTH_USER_MODEL = 'login.User'
