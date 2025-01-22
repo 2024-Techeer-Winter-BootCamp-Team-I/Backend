@@ -8,27 +8,13 @@ from github import Github, GithubException
 logger = logging.getLogger(__name__)
 
 @shared_task
-def copy_and_push_to_github(project_dir, frontend_template_dir, backend_template_dir, repo_name, username, email, access_token, organization_name=None, private=False):
+def copy_and_push_to_github(project_dir, repo_name, username, email, access_token, organization_name=None, private=False):
     """
     파일 복사 및 GitHub 레포지토리 생성 및 푸시를 수행하는 Celery 태스크
     """
     try:
         # 디렉터리 생성 (이미 존재하는 경우 무시)
         os.makedirs(project_dir, exist_ok=True)
-
-        # 프론트엔드 템플릿 복사
-        if frontend_template_dir and os.path.exists(frontend_template_dir):
-            logger.info(f"프론트엔드 템플릿 복사: {frontend_template_dir} -> {project_dir}")
-            shutil.copytree(frontend_template_dir, os.path.join(project_dir, "frontend"), dirs_exist_ok=True)
-        else:
-            logger.warning(f"프론트엔드 템플릿 디렉터리가 존재하지 않습니다: {frontend_template_dir}")
-
-        # 백엔드 템플릿 복사
-        if backend_template_dir and os.path.exists(backend_template_dir):
-            logger.info(f"백엔드 템플릿 복사: {backend_template_dir} -> {project_dir}")
-            shutil.copytree(backend_template_dir, os.path.join(project_dir, "backend"), dirs_exist_ok=True)
-        else:
-            logger.warning(f"백엔드 템플릿 디렉터리가 존재하지 않습니다: {backend_template_dir}")
 
         # GitHub API 클라이언트 초기화
         g = Github(access_token)
@@ -69,6 +55,10 @@ def copy_and_push_to_github(project_dir, frontend_template_dir, backend_template
         else:
             origin = local_repo.remotes.origin
             origin.set_url(remote_url)
+
+        # 푸시 전에 git status 확인
+        logger.info("Git 상태 확인:")
+        logger.info(local_repo.git.status())
 
         # 푸시
         origin.push(refspec='main:main', force=True)

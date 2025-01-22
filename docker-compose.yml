@@ -19,6 +19,7 @@ services:
     volumes:
       - static_volume:/Backend/static
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./temp:/DevSketch-Backend/temp  # 호스트의 ./temp 디렉토리를 컨테이너의 /DevSketch-Back
     ports:
       - "8000:8000"
     environment:
@@ -103,4 +104,3 @@ volumes:
 networks:
   DevSketch-Net:
     driver: bridge
-

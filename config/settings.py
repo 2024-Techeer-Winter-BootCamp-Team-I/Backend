@@ -288,3 +288,7 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# 프로젝트 파일 저장 경로
+PROJECTS_DIR = os.path.join(BASE_DIR, "projects")
+os.makedirs(PROJECTS_DIR, exist_ok=True)

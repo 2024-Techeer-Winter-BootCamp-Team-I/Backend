@@ -116,8 +116,6 @@ def create_repo(request):
         # Celery 태스크 실행
         task = copy_and_push_to_github.delay(
             project_dir=project_dir,
-            frontend_template_dir=None,  # 필요 시 추가
-            backend_template_dir=None,   # 필요 시 추가
             repo_name=repo_name,
             username=user.github_username,
             email=user.email,

@@ -19,6 +19,7 @@ from .tasks import create_diagram, collect_results, create_erd, create_api, redi
 
 from document.models import Document
 from document.serializers import CreateDocumentSerializer, UpdateDocumentSerializer
+from Tech_Stack.tasks import generate_project_structure, push_to_github
 
 from login.models import Project
 
@@ -492,3 +493,49 @@ def save_document_part(request, document_id):
             "status": "error",
             "message": "설계 문서를 찾을 수 없습니다."
         }, status=404)
+
+
+@api_view(['POST'])
+def setup_project(request, document_id):
+    """
+    설계 문서를 기반으로 프로젝트를 초기 세팅하고 GitHub에 푸시합니다.
+    """
+    try:
+        # 설계 문서 조회
+        document = Document.objects.get(id=document_id)
+
+        # 프로젝트 디렉터리 경로 설정
+        project_dir = os.path.join(settings.BASE_DIR, "projects", document.title)
+
+        # 초기 프로젝트 구조 생성
+        generate_project_structure.delay(
+            erd_code=document.erd_code,
+            api_code=document.api_code,
+            diagram_code=document.diagram_code,
+            project_dir=project_dir
+        ).get()
+
+        # GitHub 레포지토리 생성 및 파일 푸시
+        repo_url = push_to_github.delay(
+            project_dir=project_dir,
+            repo_name=document.title,
+            user=document.user_id
+        ).get()
+
+        return Response({
+            "status": "success",
+            "repo_url": repo_url,
+            "message": "프로젝트 초기 세팅 및 GitHub 푸시가 완료되었습니다."
+        }, status=status.HTTP_201_CREATED)
+
+    except Document.DoesNotExist:
+        return Response({
+            "status": "error",
+            "message": "설계 문서를 찾을 수 없습니다."
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
