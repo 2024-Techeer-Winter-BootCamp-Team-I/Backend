@@ -45,12 +45,39 @@ INSTALLED_APPS = [
     'social_django',  # 소셜 인증 라이브러리
     'Tech_Stack', # 기술 스택 관련 앱앱
     'rest_framework_simplejwt.token_blacklist',  # 토큰 블랙리스트 앱 추가
-    'dind'
+    'dind',
+    'corsheaders'
+
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://0.0.0.0:8000",
+    "http://localhost",
+    "http://localhost:5173",
+    "http://django:8000"
+]
+
+CORS_ALLOW_HEADERS = [
+    'authorization',
+    'x-password',
+    'content-type',
+    'x-csrftoken',
+    'accept',
+    'origin',
+    'user-agent',
+    'access-control-allow-origin',
+]
+
+CORS_ALLOW_METHODS = [ 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',]
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 SITE_ID = 1
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -169,12 +196,13 @@ SOCIALACCOUNT_PROVIDERS = {
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework_simplejwt.authentication.JWTAuthentication',  # JWT 토큰 인증
+        'login.authentication.CookieJWTAuthentication',  # 커스텀 인증 클래스
+        'rest_framework_simplejwt.authentication.JWTAuthentication',  # 필요 시 헤더 인증
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        #'rest_framework.permissions.IsAuthenticated',  # 인증된 사용자만 허용
-        'rest_framework.permissions.AllowAny', 
-    ]
+        'rest_framework.permissions.IsAuthenticated',  # 인증된 사용자만 허용
+    ],
+    # 기타 설정들...
 }
 
 AUTH_USER_MODEL = 'login.User'
@@ -216,8 +244,8 @@ SWAGGER_SETTINGS = {
 }
 
 CORS_ALLOW_CREDENTIALS = True
-CORS_ORIGIN_WHITELIST = [
-    'http://localhost:8000',  # 클라이언트 주소
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # 클라이언트 도메인
 ]
 
 SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_CLIENT_ID')  # GitHub OAuth App의 Client ID

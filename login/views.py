@@ -22,6 +22,7 @@ from login.serializers import UserProfileSerializer
 from .models import Project
 from document.models import Document
 from django.db.models import Q
+from django.http import HttpResponseRedirect
 
 class LoginGithubView(APIView):
     permission_classes = [AllowAny]
@@ -156,14 +157,17 @@ class LoginGithubCallbackView(APIView):
             }
         )
 
-        # 응답 생성
-        res = Response(response_data.data, status=status.HTTP_200_OK)
+        # # 응답 생성
+        # res = Response(response_data.data, status=status.HTTP_200_OK)
 
+        res = HttpResponseRedirect("http://localhost:5173/")
         res["Authorization"] = f"Bearer {jwt_access_token}"
 
         # 토큰을 쿠키에 저장
-        res.set_cookie("jwt_access", jwt_access_token, httponly=True)
-        res.set_cookie("refresh", refresh_token, httponly=True)
+        # 클라이언트와 동일한 도메인으로 설정
+        # 다른 도메인 간 쿠키 공유 허용
+        res.set_cookie("jwt_access",jwt_access_token,httponly=True,samesite="Lax",secure=False)
+        res.set_cookie("refresh", refresh_token, httponly=True,samesite="Lax",secure=False)
 
         return res
 
@@ -410,3 +414,71 @@ class ProjectIDView(APIView):
                 {"error": "프로젝트를 찾을 수 없습니다."},
                 status=status.HTTP_404_NOT_FOUND
             )
+            
+class UserDetailsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        operation_summary="사용자 정보 조회 API",
+        responses={
+            200: openapi.Response(
+                description="사용자 정보 조회 성공",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "username": openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="GitHub 사용자 이름"
+                        ),
+                        "profile_image": openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description="GitHub 사용자 프로필 이미지 URL"
+                        ),
+                    },
+                ),
+            ),
+            401: openapi.Response(
+                description="인증 실패 (JWT 토큰 누락 또는 유효하지 않음)"
+            ),
+        },
+    )
+    def get(self, request):
+        user = request.user
+        data = {
+            "username": user.github_username,
+            "profile_image": user.profile_image,
+        }
+        return Response(data, status=status.HTTP_200_OK)
+    
+class RefreshTokenView(APIView):
+    permission_classes = [AllowAny]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'refresh_token': openapi.Schema(type=openapi.TYPE_STRING, description='Refresh token')
+            }
+        )
+    )
+    def post(self, request):
+        # 쿠키에서 리프레시 토큰을 가져옵니다.
+        refresh_token = request.COOKIES.get('refresh_token')  # 쿠키에서 리프레시 토큰 가져오기
+        
+        if not refresh_token:
+            return Response({"error": "Refresh token을 제공해야 합니다."}, status=400)
+
+        try:
+            # 리프레시 토큰을 사용하여 새 액세스 토큰 발급
+            refresh = RefreshToken(refresh_token)
+            jwt_access_token = str(refresh.access_token)
+
+            # 새 액세스 토큰을 쿠키에 저장
+            res = Response({"access_token": jwt_access_token})
+
+            # 새 액세스 토큰을 쿠키에 설정
+            res.set_cookie("jwt_access",jwt_access_token,httponly=True,samesite="Lax",secure=False)
+            return res
+        
+        except Exception as e:
+            return Response({"error": str(e)}, status=400)

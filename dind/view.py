@@ -1,5 +1,6 @@
 import logging
 import time
+import os
 
 import docker
 from drf_yasg.utils import swagger_auto_schema
@@ -36,6 +37,8 @@ def create_dind_handler(request):
         github_url = serializer.validated_data.get("github_url")
         repo_name = serializer.validated_data.get("repo_name")
 
+        base_domain = os.environ.get("BASE_DOMAIN", "localhost")
+
         client = docker.from_env()
         container_name = f"{github_name}-dind"
 
@@ -48,14 +51,13 @@ def create_dind_handler(request):
                 detach=True,
                 labels={
                     "traefik.enable": "true",
-                    f"traefik.http.routers.{github_name}.rule": f"Host(`{github_name}.localhost`)",
+                    f"traefik.http.routers.{github_name}.rule": f"Host(`{github_name}.{base_domain}`)",
                     f"traefik.http.routers.{github_name}.service": f"{github_name}-service",
                     f"traefik.http.services.{github_name}-service.loadbalancer.server.port": "8000",
                     "traefik.docker.network": "backend_DevSketch-Net",
                 },
                 environment={"DOCKER_TLS_CERTDIR": ""},
                 network="backend_DevSketch-Net",
-                command="/bin/sh -c 'sleep 300 && docker stop $(hostname) && docker rm $(hostname)'"
             )
 
             #도커 데몬이 준비될 때까지 대기
@@ -92,6 +94,24 @@ def create_dind_handler(request):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
+             # /app/{repo_name} 디렉토리 확인
+            check_dir_command = f"ls /app/{repo_name}"
+            exit_code, output = container.exec_run(check_dir_command)
+            if exit_code != 0:
+                return Response(
+                    {"error": f"/app/{repo_name} 디렉토리 확인 실패: {output.decode()}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+            # docker-compose.yml 파일 확인
+            check_compose_command = f"ls /app/{repo_name}/docker-compose.yml"
+            exit_code, output = container.exec_run(check_compose_command)
+            if exit_code != 0:
+                return Response(
+                    {"error": "docker-compose.yml 파일이 존재하지 않습니다."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             #docker-compose 실행
             compose_command = f"docker-compose -f /app/{repo_name}/docker-compose.yml up --build -d"
             exit_code, output = container.exec_run(compose_command, tty=True, privileged=True)
@@ -124,7 +144,7 @@ def wait_for_docker(container):
 
     start_time = time.time()
 
-    while time.time() - start_time < 35:
+    while time.time() - start_time < 30:
         exit_code, _ = container.exec_run("docker info")
 
         if exit_code == 0:

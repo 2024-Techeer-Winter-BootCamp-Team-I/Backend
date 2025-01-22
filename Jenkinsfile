@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        repository = "sensesis/devsketch-backend1"  //docker hub id와 repository 이름
+        repository = "sensesis/devsketch"  //docker hub id와 repository 이름
         DOCKERHUB_CREDENTIALS = credentials('docker-hub') // jenkins에 등록해 놓은 docker hub credentials 이름
         IMAGE_TAG = "" // docker image tag
     }
@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-		            cleanWs() //워크스페이스 청소
+		        cleanWs()
                 git branch: 'develop', url: "https://github.com/2024-Techeer-Winter-BootCamp-Team-I/Backend.git"
             }
         }
@@ -43,13 +43,15 @@ pipeline {
                 script {
                     sh "docker build -t ${repository}:${IMAGE_TAG} ." // docker build
                 }
-                //slackSend message: "Build Started - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
+                slackSend message: "Build Started - ${env.JOB_NAME} ${env.BUILD_NUMBER} (<${env.BUILD_URL}|Open>)"
             }
         }
 
-        stage('Login'){
-            steps{
-                sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin" // docker hub 로그인
+        stage('Login') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker-hub', usernameVariable: 'DOCKERHUB_USR', passwordVariable: 'DOCKERHUB_PSW')]) {
+                    sh '''echo "$DOCKERHUB_PSW" | docker login -u "$DOCKERHUB_USR" --password-stdin'''
+                }
             }
         }
 
