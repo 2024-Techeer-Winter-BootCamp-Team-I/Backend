@@ -72,20 +72,6 @@ class TechStackSetupView(ViewSet):
                 directory_path=project_dir
             )
 
-            # 프론트엔드 템플릿 처리
-            frontend_template_dir = None
-            if frontend_tech_stack:
-                frontend_template_dir = find_matching_template(frontend_tech_stack, 'frontend')
-                if frontend_template_dir:
-                    self.save_project_tech(project, frontend_tech_stack, project_dir)
-
-            # 백엔드 템플릿 처리
-            backend_template_dir = None
-            if backend_tech_stack:
-                backend_template_dir = find_matching_template(backend_tech_stack, 'backend')
-                if backend_template_dir:
-                    self.save_project_tech(project, backend_tech_stack, project_dir)
-
             # document_id가 제공된 경우, 설계 결과물과 합치기
             if document_id:
                 try:
@@ -98,7 +84,8 @@ class TechStackSetupView(ViewSet):
                         erd_code=document.erd_code,
                         api_code=document.api_code,
                         diagram_code=document.diagram_code,
-                        backend_tech_stack=backend_tech_stack
+                        frontend_tech_stack=frontend_tech_stack,  # 프론트엔드 기술 스택 전달
+                        backend_tech_stack=backend_tech_stack     # 백엔드 기술 스택 전달
                     ).get()
 
                     message = "초기 디렉터리 생성 및 설계 결과물 합치기 성공"
@@ -110,24 +97,13 @@ class TechStackSetupView(ViewSet):
             else:
                 message = "초기 디렉터리 생성 성공"
 
-            # Celery 태스크 실행
-            if frontend_template_dir or backend_template_dir:
-                task = copy_template_files.delay(project_dir, frontend_template_dir, backend_template_dir)
-                logger.info(f"Celery 태스크 ID: {task.id}")
-
-                return Response(
-                    {
-                        "task_id": task.id,
-                        "message": message,
-                        "project_dir": project_dir
-                    },
-                    status=status.HTTP_202_ACCEPTED
-                )
-            else:
-                return Response(
-                    {"error": "유효한 기술 스택이 제공되지 않았습니다."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+            return Response(
+                {
+                    "message": message,
+                    "project_dir": project_dir
+                },
+                status=status.HTTP_202_ACCEPTED
+            )
 
         except Exception as e:
             logger.error(f"초기 디렉터리 생성 중 오류 발생: {str(e)}", exc_info=True)
@@ -135,7 +111,7 @@ class TechStackSetupView(ViewSet):
                 {"error": "초기 디렉터리 생성 중 오류가 발생했습니다."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
+        
     def save_project_tech(self, project, tech_stack_names, project_dir):
         """
         ProjectTech 모델에 데이터를 저장합니다.
@@ -156,7 +132,7 @@ class TechStackSetupView(ViewSet):
                 # 기술 스택 타입 결정
                 if any(keyword in tech_name.lower() for keyword in ["react", "js", "npm", "vite", "webpack","ts","yarn","javascript","typescript"]):
                     stack_type = "frontend"
-                elif any(keyword in tech_name.lower() for keyword in ["django", "node.js", "mysql", "postgresql"]):
+                elif any(keyword in tech_name.lower() for keyword in ["django", "node.js", "sqlite3", "mysql", "postgresql"]):
                     stack_type = "backend"
                 else:
                     stack_type = "unknown"  # 기본값

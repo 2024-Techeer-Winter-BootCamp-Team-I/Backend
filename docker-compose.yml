@@ -42,6 +42,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=Host(`backend.localhost`)"  # 백틱으로 수정
       - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    privileged: true
 
   redis:
     image: redis:7.0
@@ -69,6 +70,9 @@ services:
       - backend
       - rabbitmq
       - redis
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./temp:/DevSketch-Backend/temp  # 호스트의 ./temp 디렉토리를 컨테이너의 /DevSketch-Back
     environment:
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
@@ -81,6 +85,7 @@ services:
       FRONTEND_RESULT_URL: ${FRONTEND_RESULT_URL}
     networks:
       - DevSketch-Net
+    privileged: true
 
   traefik:
     image: traefik:v2.9
