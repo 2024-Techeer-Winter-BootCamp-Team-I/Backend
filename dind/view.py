@@ -51,13 +51,15 @@ def create_dind_handler(request):
                 detach=True,
                 labels={
                     "traefik.enable": "true",
-                    f"traefik.http.routers.{github_name}.rule": f"Host(`{github_name}.{base_domain}`)",
-                    f"traefik.http.routers.{github_name}.service": f"{github_name}-service",
-                    f"traefik.http.services.{github_name}-service.loadbalancer.server.port": "8000",
-                    "traefik.docker.network": "backend_DevSketch-Net",
+                    f"traefik.http.routers.{github_name}.rule": f"HostRegexp(`{github_name}.{base_domain}`)",
+                    f"traefik.http.routers.{github_name}.tls.certresolver": "letsencrypt",
+                    f"traefik.http.routers.{github_name}.entrypoints": "websecure",
+                    f"traefik.http.services.{github_name}.loadbalancer.server.port": "8000",
+                    f"traefik.http.middlewares.{github_name}-replacepathregex.replacepathregex.regex": "^/.*",
+                    f"traefik.http.middlewares.{github_name}-replacepathregex.replacepathregex.replacement": "/"
                 },
                 environment={"DOCKER_TLS_CERTDIR": ""},
-                network="backend_DevSketch-Net",
+                network="directory_DevSketch-Net",
             )
 
             #도커 데몬이 준비될 때까지 대기
