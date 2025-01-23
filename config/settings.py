@@ -258,7 +258,7 @@ ALLAUTH_MIGRATION_MODULES = {
 }
 
 #배포서버 호스트
-ALLOWED_HOSTS = ['devsketch.site', 'www.devsketch.site', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['devsketch.site', 'www.devsketch.site', 'localhost', '127.0.0.1', '*.devsketch.site']
 
 #deepseek 키
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
