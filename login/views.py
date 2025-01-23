@@ -463,7 +463,7 @@ class RefreshTokenView(APIView):
     )
     def post(self, request):
         # 쿠키에서 리프레시 토큰을 가져옵니다.
-        refresh_token = request.COOKIES.get('refresh_token')  # 쿠키에서 리프레시 토큰 가져오기
+        refresh_token = request.COOKIES.get('refresh')  # 쿠키에서 리프레시 토큰 가져오기
         
         if not refresh_token:
             return Response({"error": "Refresh token을 제공해야 합니다."}, status=400)
