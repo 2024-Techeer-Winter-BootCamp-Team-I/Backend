@@ -7,5 +7,5 @@ urlpatterns = [
     path('<int:document_id>', update_document, name = "update_document"),
     path('<int:document_id>/design', dev_document, name = "dev_document"),
     path('<int:document_id>/save',save_document_part, name = "save_document_part"),
-    path('setup-project/<int:document_id>/', setup_project, name='setup_project'),
+    #path('setup-project/<int:document_id>/', setup_project, name='setup_project'),
 ]
