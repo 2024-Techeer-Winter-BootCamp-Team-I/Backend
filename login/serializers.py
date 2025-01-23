@@ -7,6 +7,7 @@ class LoginResponseSerializer(serializers.Serializer):
     
 class UserProfileSerializer(serializers.Serializer):
     github_username = serializers.CharField()
+    email = serializers.EmailField()
     project_names = serializers.ListField(
         child=serializers.CharField(),
         allow_empty=True

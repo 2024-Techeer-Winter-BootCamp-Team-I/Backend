@@ -43,7 +43,7 @@ class LoginGithubView(APIView):
     )
     def get(self, request):
         # 깃허브 oauth2 로그인 페이지로 리다이렉트
-        github_oauth_url = f"https://github.com/login/oauth/authorize?client_id={os.getenv('GITHUB_CLIENT_ID')}&redirect_uri={os.getenv('GITHUB_REDIRECT_URI')}&scope=repo"
+        github_oauth_url = f"https://github.com/login/oauth/authorize?client_id={os.getenv('GITHUB_CLIENT_ID')}&redirect_uri={os.getenv('GITHUB_REDIRECT_URI')}&scope=repo user:email"
         return redirect(github_oauth_url)
 
 class CodeView(APIView):
@@ -224,12 +224,16 @@ class MyPageView(APIView):
         # 사용자 정보 직렬화
         data = {
             "github_username": user.github_username,  # 사용자의 GitHub 이름
+            "email":user.email,
             "project_names": project_names    # 사용자의 프로젝트 이름 목록
         }
-        serializer = UserProfileSerializer(data)
+        serializer = UserProfileSerializer(data=data)
 
         # 응답 반환
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        if serializer.is_valid():
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     @swagger_auto_schema(
         operation_summary="로그아웃",
