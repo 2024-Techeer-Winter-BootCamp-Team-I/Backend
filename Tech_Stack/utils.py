@@ -19,6 +19,7 @@ def find_matching_template(tech_stack_name, project_type):
         templates = [
             "Django_postgresql",
             "Django_mysql",
+            "Django_sqlite3",
             "Node.js_postgresql",
             "Node.js_mysql",
         ]
