@@ -137,15 +137,6 @@ def documents(request):
                     """
 
                 review_result = call_deepseek_api(prompt)
-                def event_stream():
-                    try:
-                        for char in review_result:
-                            yield f"data: {char}\n\n"
-
-                            time.sleep(0.01)
-
-                    except Exception as e:
-                        yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
 
                 document = Document.objects.create(
                     user_id=user,
@@ -154,6 +145,8 @@ def documents(request):
                     requirements=requirements,
                     result=review_result
                 )
+
+                document_id = document.id
                 
                 # Project 모델에 사용자 및 프로젝트 이름 저장
                 project_name = title  # 프로젝트 이름을 title로 저장
@@ -166,6 +159,18 @@ def documents(request):
                     print(f"프로젝트 '{project_name}'이(가) 생성되었습니다.")
                 else:
                     print(f"기존 프로젝트 '{project_name}'을(를) 사용합니다.")
+
+                def event_stream():
+                    try:
+                        yield f"data: {{\"document_id\": \"{document_id}\"}}\n\n"
+
+                        for char in review_result:
+                            yield f"data: {{\"content\": \"{char}\"}}\n\n"
+
+                            time.sleep(0.01)
+
+                    except Exception as e:
+                        yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
 
                 return StreamingHttpResponse(event_stream(), content_type="text/event-stream")
 
