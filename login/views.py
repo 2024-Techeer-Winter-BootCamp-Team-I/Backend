@@ -468,7 +468,7 @@ class RefreshTokenView(APIView):
     def post(self, request):
         # 쿠키에서 리프레시 토큰을 가져옵니다.
         refresh_token = request.COOKIES.get('refresh')  # 쿠키에서 리프레시 토큰 가져오기
-        
+
         if not refresh_token:
             return Response({"error": "Refresh token을 제공해야 합니다."}, status=400)
 
@@ -477,12 +477,20 @@ class RefreshTokenView(APIView):
             refresh = RefreshToken(refresh_token)
             jwt_access_token = str(refresh.access_token)
 
-            # 새 액세스 토큰을 쿠키에 저장
-            res = Response({"access_token": jwt_access_token})
+            # 응답에 새 액세스 토큰 포함
+            res = Response({
+                "access_token": jwt_access_token
+            })
 
-            # 새 액세스 토큰을 쿠키에 설정
-            res.set_cookie("jwt_access",jwt_access_token,httponly=True,samesite="Lax",secure=False)
+            # 새 액세스 토큰을 쿠키에 저장
+            res.set_cookie(
+                key="jwt_access",
+                value=jwt_access_token,
+                httponly=True,
+                samesite="Lax",  # 필요한 경우 Strict 또는 None으로 변경
+                secure=False  # HTTPS 환경에서는 True로 설정 필요
+            )
             return res
-        
+
         except Exception as e:
             return Response({"error": str(e)}, status=400)
