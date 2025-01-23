@@ -120,19 +120,14 @@ DEEPSEEK_API_KEY = os.environ.get('DEEPSEEK_API_KEY')
 
 RUNNING_IN_DOCKER = os.getenv('RUNNING_IN_DOCKER', 'false').lower() == 'true'
 
-if RUNNING_IN_DOCKER:
-    DB_HOST = 'db'
-else:
-    DB_HOST = '127.0.0.1'
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('DATABASE_NAME'),
         'USER': os.getenv('DATABASE_USER'),
         'PASSWORD': os.getenv('DATABASE_PASSWORD'),
-        'HOST': DB_HOST,
-        'PORT': '3306',
+        'HOST': os.getenv('DATABASE_HOST'),
+        'PORT': os.getenv('DATABASE_PORT'),
     }
 }
 
