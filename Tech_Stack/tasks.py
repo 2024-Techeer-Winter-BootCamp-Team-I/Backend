@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import subprocess
+import textwrap
 from celery import shared_task
 from django.conf import settings
 from celery import chain
@@ -28,7 +29,6 @@ def copy_template_files(project_dir, frontend_template_dir, backend_template_dir
         return True
     except Exception as e:
         raise Exception(f"Error copying template files: {e}")
-
 
 def generate_models_from_erd(erd_code):
     """
@@ -64,10 +64,14 @@ from django.db import models
         models_code += f"""
 class {entity}(models.Model):
 """
+        # id 필드를 CharField로 정의 (Primary Key)
+        models_code += f"    id = models.CharField(max_length=255, primary_key=True)\n"
+        
+        # 나머지 필드 추가
         for field_name, field_type in fields:
             if field_type == "string":
                 models_code += f"    {field_name} = models.CharField(max_length=255)\n"
-            elif field_type == "timestamp":
+            elif field_type == "timestamp" or field_type == "datetime":
                 models_code += f"    {field_name} = models.DateTimeField(auto_now_add=True)\n"
             elif field_type == "bool":
                 models_code += f"    {field_name} = models.BooleanField(default=False)\n"
@@ -79,13 +83,12 @@ class {entity}(models.Model):
 
     return models_code
 
-
 def generate_api_endpoints(api_code, backend_tech_stack):
     """
     API 코드를 기반으로 백엔드 기술 스택에 맞는 엔드포인트 코드를 생성합니다.
     """
     if "Django" in backend_tech_stack:
-        return f"""
+        code = """
         # Generated Django Views from API
         from django.http import JsonResponse
         from django.views.decorators.csrf import csrf_exempt
@@ -96,17 +99,19 @@ def generate_api_endpoints(api_code, backend_tech_stack):
             if request.method == "POST":
                 data = json.loads(request.body)
                 prompt = data.get("text")
-                return JsonResponse({{"image_url": "http://example.com/generated-image.png"}})
-            return JsonResponse({{"error": "Invalid request method"}}, status=400)
+                return JsonResponse({"image_url": "http://example.com/generated-image.png"})
+            return JsonResponse({"error": "Invalid request method"}, status=400)
 
         @csrf_exempt
         def send_mms(request):
             if request.method == "POST":
                 image = request.FILES.get("image")
                 phone_number = request.POST.get("phoneNumber")
-                return JsonResponse({{"status": "?? ??"}})
-            return JsonResponse({{"error": "Invalid request method"}}, status=400)
+                return JsonResponse({"status": "?? ??"})
+            return JsonResponse({"error": "Invalid request method"}, status=400)
         """
+        # 들여쓰기 제거
+        return textwrap.dedent(code).strip()
     else:
         raise ValueError("지원되지 않는 백엔드 기술 스택입니다.")
 
@@ -128,6 +133,20 @@ def generate_swagger_from_api(api_code):
     }}
     """
 
+def generate_urls_from_views(app_name):
+    """
+    views.py에 정의된 API 엔드포인트를 기반으로 urls.py를 생성합니다.
+    """
+    urls_code = f"""
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('generate-image/', views.generate_image, name='generate_image'),
+    path('send-mms/', views.send_mms, name='send_mms'),
+]
+"""
+    return urls_code.strip()
 
 @shared_task
 def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, frontend_tech_stack, backend_tech_stack):
@@ -163,16 +182,25 @@ def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, fro
             if not os.path.exists(app_dir):
                 raise Exception(f"앱 디렉터리가 생성되지 않았습니다: {app_dir}")
 
+            # models.py 생성
             models_code = generate_models_from_erd(erd_code)
             models_path = os.path.join(app_dir, "models.py")
             with open(models_path, "w") as f:
                 f.write(models_code)
 
+            # views.py 생성
             api_endpoints_code = generate_api_endpoints(api_code, backend_tech_stack)
             api_endpoints_path = os.path.join(app_dir, "views.py")
             with open(api_endpoints_path, "w") as f:
                 f.write(api_endpoints_code)
 
+            # urls.py 생성
+            urls_code = generate_urls_from_views(app_name)
+            urls_path = os.path.join(app_dir, "urls.py")
+            with open(urls_path, "w") as f:
+                f.write(urls_code)
+
+            # settings.py에 앱 추가
             settings_path = os.path.join(backend_dir, "config", "settings.py")
             if os.path.exists(settings_path):
                 with open(settings_path, "r") as f:
@@ -187,6 +215,21 @@ def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, fro
                     with open(settings_path, "w") as f:
                         f.write(settings_content)
 
+            # 프로젝트의 urls.py에 앱의 urls.py 포함
+            project_urls_path = os.path.join(backend_dir, "config", "urls.py")
+            if os.path.exists(project_urls_path):
+                with open(project_urls_path, "r") as f:
+                    project_urls_content = f.read()
+
+                if f"path('api/', include('{app_name}.urls'))" not in project_urls_content:
+                    project_urls_content = project_urls_content.replace(
+                        "urlpatterns = [",
+                        f"from django.urls import include\n\nurlpatterns = [\n    path('api/', include('{app_name}.urls')),"
+                    )
+
+                    with open(project_urls_path, "w") as f:
+                        f.write(project_urls_content)
+
         swagger_code = generate_swagger_from_api(api_code)
         swagger_path = os.path.join(project_dir, "swagger.json")
         with open(swagger_path, "w") as f:
@@ -195,7 +238,6 @@ def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, fro
         return project_dir
     except Exception as e:
         raise Exception(f"설계 결과물과 초기 디렉터리 합치기 중 오류 발생: {str(e)}")
-
 
 @shared_task
 def generate_project_structure(erd_code, api_code, diagram_code, project_dir):

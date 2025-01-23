@@ -132,7 +132,7 @@ class TechStackSetupView(ViewSet):
                 # 기술 스택 타입 결정
                 if any(keyword in tech_name.lower() for keyword in ["react", "js", "npm", "vite", "webpack","ts","yarn","javascript","typescript"]):
                     stack_type = "frontend"
-                elif any(keyword in tech_name.lower() for keyword in ["django", "node.js", "mysql", "postgresql"]):
+                elif any(keyword in tech_name.lower() for keyword in ["django", "node.js", "sqlite3", "mysql", "postgresql"]):
                     stack_type = "backend"
                 else:
                     stack_type = "unknown"  # 기본값
