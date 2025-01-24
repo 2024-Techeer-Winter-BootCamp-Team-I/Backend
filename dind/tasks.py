@@ -51,6 +51,8 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
         if exit_code != 0:
             raise Exception({output.decode()})
 
+        time.sleep(3)
+
         print("작업실행2")
         # /app/{repo_name} 디렉토리 확인
         check_dir_command = f"ls {repo_name}"
@@ -58,12 +60,16 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
         if exit_code != 0:
             raise Exception({output.decode()})
 
+        time.sleep(3)
+
         print("작업실행3")
         # docker-compose.yml 파일 확인
         check_compose_command = f"ls {repo_name}/docker-compose.yml"
         exit_code, output = container.exec_run(check_compose_command)
         if exit_code != 0:
             raise Exception({output.decode()})
+
+        time.sleep(5)
 
         print("작업실행4")
         # docker-compose 실행
