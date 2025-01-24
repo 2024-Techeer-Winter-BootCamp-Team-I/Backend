@@ -70,8 +70,8 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
             raise Exception({output.decode()})
 
         time.sleep(3)
-        client = docker.from_env()
-        container = client.containers.get(container_name)
+        #client = docker.from_env()
+        #container = client.containers.get(container_name)
 
         # docker-compose 실행
         compose_command = f"dockerd"
