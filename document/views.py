@@ -161,15 +161,15 @@ def documents(request):
                     print(f"기존 프로젝트 '{project_name}'을(를) 사용합니다.")
 
                 def event_stream():
-                    try:
-                        yield f"data: {{\"document_id\": \"{document_id}\"}}\n\n"
+                    yield f"data: {{\"document_id\": \"{document_id}\"}}\n\n"
 
+                    try:
                         for char in review_result:
                             yield f"data: {{\"content\": \"{char}\"}}\n\n"
-
-                            time.sleep(0.01)
+                            time.sleep(0.01)  # 스트림 간 지연
 
                     except Exception as e:
+                        # 예외 발생 시 에러 메시지 전송
                         yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
 
                 return StreamingHttpResponse(event_stream(), content_type="text/event-stream")
