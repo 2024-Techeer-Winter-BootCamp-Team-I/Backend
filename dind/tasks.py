@@ -1,8 +1,9 @@
 import time
+from asyncio import timeout
 
 import docker
 from celery import shared_task
-
+from docker.errors import NotFound
 
 @shared_task
 def create_dind_task(github_name, github_url, repo_name, base_domain):
@@ -33,14 +34,18 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
 
         # 도커 데몬 준비 대기
         start_time = time.time()
-        while time.time() - start_time < 30:
-            container = client.containers.get(container_name)
-            if container:
+        while time.time() - start_time < timeout:
+            try:
+                container = client.containers.get(container_name)
+                print(f"Container '{container_name}' found.")
                 break
-            time.sleep(1)
+            except NotFound:
+                print(f"Container '{container_name}' not found, retrying...")
+                time.sleep(1)
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                time.sleep(1)
         else:
-            raise Exception("도커 데몬 준비 실패.")
-
             # Git 클론
             clone_command = f"git clone {github_url}"
             exit_code, output = container.exec_run(clone_command, tty=True, privileged=True)
