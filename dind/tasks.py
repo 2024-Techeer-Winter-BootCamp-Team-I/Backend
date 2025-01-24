@@ -74,7 +74,7 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
         container = client.containers.get(container_name)
 
         # docker-compose 실행
-        compose_command = f"systemctl start docker"
+        compose_command = f"dockerd"
         exit_code, output = container.exec_run(compose_command, tty=True, privileged=True)
         print({output.decode()})
         if exit_code != 0:
