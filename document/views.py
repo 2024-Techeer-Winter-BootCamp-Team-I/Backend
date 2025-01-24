@@ -162,8 +162,6 @@ def documents(request):
 
                 def event_stream():
                     try:
-                        yield f"data: {{\"document_id\": \"{document_id}\"}}\n\n"
-
                         for char in review_result:
                             yield f"data: {{\"content\": \"{char}\"}}\n\n"
 
@@ -172,7 +170,9 @@ def documents(request):
                     except Exception as e:
                         yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
 
-                return StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+                response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+                response["X-Document-ID"] = str(document_id)
+                return response
 
             except Exception as e:
                 return JsonResponse({
