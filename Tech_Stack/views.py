@@ -9,6 +9,7 @@ from django.conf import settings
 from django.utils import timezone
 import os
 import logging
+import shutil
 from .tasks import copy_template_files
 from .models import Project, TechStack, ProjectTech
 from Tech_Stack.tasks import merge_design_with_project
@@ -72,22 +73,40 @@ class TechStackSetupView(ViewSet):
                 directory_path=project_dir
             )
 
-            # document_id가 제공된 경우, 설계 결과물과 합치기
-            if document_id:
-                try:
-                    # 설계 문서 조회
-                    document = Document.objects.get(id=document_id)
+            # 프론트엔드 템플릿 처리
+            frontend_template_dir = find_matching_template(frontend_tech_stack, 'frontend')
+            if frontend_template_dir:
+                if os.path.exists(frontend_template_dir):
+                    shutil.copytree(frontend_template_dir, os.path.join(project_dir, "frontend"))
+                    logger.info(f"Frontend template copied from {frontend_template_dir} to {os.path.join(project_dir, 'frontend')}")
+                else:
+                    logger.warning(f"Frontend template directory does not exist: {frontend_template_dir}")
+            else:
+                logger.warning("No frontend template directory found.")
 
-                    # 설계 결과물과 초기 디렉터리 합치기
+            # 백엔드 템플릿 처리
+            backend_template_dir = find_matching_template(backend_tech_stack, 'backend')
+            if backend_template_dir:
+                if os.path.exists(backend_template_dir):
+                    shutil.copytree(backend_template_dir, os.path.join(project_dir, "backend"))
+                    logger.info(f"Backend template copied from {backend_template_dir} to {os.path.join(project_dir, 'backend')}")
+                else:
+                    logger.warning(f"Backend template directory does not exist: {backend_template_dir}")
+            else:
+                logger.warning("No backend template directory found.")
+
+            # document_id가 0이 아닐 경우, 설계 결과물과 합치기
+            if document_id and document_id != 0:
+                try:
+                    document = Document.objects.get(id=document_id)
                     merge_design_with_project.delay(
                         project_dir=project_dir,
                         erd_code=document.erd_code,
                         api_code=document.api_code,
                         diagram_code=document.diagram_code,
-                        frontend_tech_stack=frontend_tech_stack,  # 프론트엔드 기술 스택 전달
-                        backend_tech_stack=backend_tech_stack     # 백엔드 기술 스택 전달
+                        frontend_tech_stack=frontend_tech_stack,
+                        backend_tech_stack=backend_tech_stack
                     ).get()
-
                     message = "초기 디렉터리 생성 및 설계 결과물 합치기 성공"
                 except Document.DoesNotExist:
                     return Response(
@@ -111,7 +130,7 @@ class TechStackSetupView(ViewSet):
                 {"error": "초기 디렉터리 생성 중 오류가 발생했습니다."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-        
+       
     def save_project_tech(self, project, tech_stack_names, project_dir):
         """
         ProjectTech 모델에 데이터를 저장합니다.
@@ -239,7 +258,12 @@ class MergeDesignWithProjectView(APIView):
                         status=status.HTTP_404_NOT_FOUND
                     )
             else:
-                message = "초기 디렉터리 생성 성공"
+                # document_id가 없을 경우, 정적 파일만 복사
+                if frontend_template_dir:
+                    shutil.copytree(frontend_template_dir, os.path.join(project_dir, "frontend"))
+                if backend_template_dir:
+                    shutil.copytree(backend_template_dir, os.path.join(project_dir, "backend"))
+                message = "초기 디렉터리 생성 성공 (정적 파일 복사 완료)"
 
             # Celery 태스크 실행 (프론트엔드 또는 백엔드 중 하나라도 있으면 실행)
             if frontend_template_dir or backend_template_dir:
