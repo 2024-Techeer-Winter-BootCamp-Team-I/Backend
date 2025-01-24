@@ -1,5 +1,5 @@
+import json
 import os
-import time
 
 import certifi
 import openai
@@ -22,6 +22,9 @@ from document.serializers import CreateDocumentSerializer, UpdateDocumentSeriali
 from Tech_Stack.tasks import generate_project_structure, push_to_github
 
 from login.models import Project
+import logging
+
+logger = logging.getLogger(__name__)
 
 openai.api_key = os.environ.get("DEEPSEEK_API_KEY")
 openai.api_base = os.environ.get("DEEPSEEK_API_URL")
@@ -53,7 +56,7 @@ openai.api_base = os.environ.get("DEEPSEEK_API_URL")
                             properties={
                                 "id": openapi.Schema(type=openapi.TYPE_INTEGER, description="문서 ID"),
                                 "title": openapi.Schema(type=openapi.TYPE_STRING, description="문서 제목"),
-                                "response": openapi.Schema(type=openapi.TYPE_STRING, description="AI 처리 결과"),
+                                "result": openapi.Schema(type=openapi.TYPE_STRING, description="AI 처리 결과"),
                             },
                         ),
                     ),
@@ -136,55 +139,41 @@ def documents(request):
                         위의 출력 예시는 쇼핑몰 예시입니다. 사용자가 입력한 정보를 바탕으로 예시를 참고하여 출력해주세요.
                     """
 
-                review_result = call_deepseek_api(prompt)
-
+                # Document 객체를 먼저 생성 (result는 빈 문자열로 초기화)
                 document = Document.objects.create(
-                    user_id=user,
+                    user_id=user,  # ForeignKey인 경우 'user'로 지정
                     title=title,
                     content=content,
                     requirements=requirements,
-                    result=review_result
+                    result=""  # 초기 result는 빈 문자열
                 )
+
+                # Project 생성 또는 가져오기
+                project_name = title
+                Project.objects.get_or_create(user=user, name=project_name)
 
                 document_id = document.id
-                
-                # Project 모델에 사용자 및 프로젝트 이름 저장
-                project_name = title  # 프로젝트 이름을 title로 저장
-                project, created = Project.objects.get_or_create(
-                    user=user,
-                    name=project_name,
-                )
 
-                if created:
-                    print(f"프로젝트 '{project_name}'이(가) 생성되었습니다.")
-                else:
-                    print(f"기존 프로젝트 '{project_name}'을(를) 사용합니다.")
+                # 스트리밍을 처리할 DocumentStream 객체 생성
+                stream = DocumentStream(prompt, document)
 
-                def event_stream():
-                    try:
-                        for char in review_result:
-                            yield f"data: {{\"content\": \"{char}\"}}\n\n"
-
-                            time.sleep(0.01)
-
-                    except Exception as e:
-                        yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
-
-                response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+                # StreamingHttpResponse 생성
+                response = StreamingHttpResponse(stream, content_type="text/event-stream; charset=utf-8")
                 response["X-Document-ID"] = str(document_id)
                 return response
 
             except Exception as e:
+                logger.error(f"Error in documents view: {str(e)}")
                 return JsonResponse({
                     "status": "error",
                     "message": str(e)
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        else:
-            return JsonResponse({
-                "status": "error",
-                "errors": serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return JsonResponse({
+                    "status": "error",
+                    "errors": serializer.errors
+                }, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == "GET":
         # 문서 조회 로직
@@ -195,7 +184,7 @@ def documents(request):
                 {
                     "id": document.id,
                     "title": document.title,
-                    "response": document.result,
+                    "result": document.result,
                 }
                 for document in documents
             ]
@@ -260,23 +249,11 @@ def update_document(request, document_id):
                         4.바로 제출할 수 있도록 실제 문서 내용"만" 출력해주세요.
                         """
 
-            # DeepSeek API 호출 후 Document 저장
-            review_result = call_deepseek_api(prompt)
+            # 스트리밍을 처리할 DocumentStream 객체 생성
+            stream = DocumentStream(prompt, document)
 
-            document.result = review_result
-            document.save()
-
-            def event_stream():
-                try:
-                    for char in review_result:
-                        yield f"data: {{\"content\": \"{char}\"}}\n\n"
-
-                        time.sleep(0.01)
-
-                except Exception as e:
-                    yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
-
-            response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+            # StreamingHttpResponse 생성 (charset=utf-8 명시)
+            response = StreamingHttpResponse(stream, content_type="text/event-stream; charset=utf-8")
             response["X-Document-ID"] = str(document_id)
             return response
 
@@ -380,37 +357,6 @@ def dev_document(request, document_id):
         "status": "success",
         "data": final_result,
     }, status = status.HTTP_200_OK)
-
-#----------------------------------------------------------
-
-def call_deepseek_api(prompt):
-    api_url = "https://api.deepseek.com/v1/chat/completions"
-    api_key = settings.DEEPSEEK_API_KEY
-
-    payload = {
-        "model": "deepseek-chat",
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "stream": False
-    }
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-
-    response = requests.post(api_url, json=payload, headers=headers)
-
-    if response.status_code == 200:
-        review_result = response.json()
-        return review_result['choices'][0]['message']['content']
-    else:
-        error_msg = response.json().get("error", "Unknown error occurred.")
-        raise Exception(f"DeepSeek API failed: {error_msg}")
-
-# SSL 인증서 파일 경로 설정
-os.environ["SSL_CERT_FILE"] = certifi.where()
 
 #----------------------------------------------------------
 
@@ -552,3 +498,115 @@ def setup_project(request, document_id):
             "status": "error",
             "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#----------------------------------------------------------
+
+def call_deepseek_api(prompt):
+    api_url = "https://api.deepseek.com/v1/chat/completions"
+    api_key = settings.DEEPSEEK_API_KEY
+
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "stream": False
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    response = requests.post(api_url, json=payload, headers=headers)
+
+    if response.status_code == 200:
+        review_result = response.json()
+        return review_result['choices'][0]['message']['content']
+    else:
+        error_msg = response.json().get("error", "Unknown error occurred.")
+        raise Exception(f"DeepSeek API failed: {error_msg}")
+
+
+# ----------------------------------------------------------
+
+class DocumentStream:
+    def __init__(self, prompt, document):
+        self.prompt = prompt
+        self.document = document
+        self.sum_result = ""
+        logger.debug("Initialized DocumentStream")
+
+    def __iter__(self):
+        try:
+            for chunk in self.call_deepseek_api_stream(self.prompt):
+                lines = chunk.strip().split("\n")
+                for line in lines:
+                    if line.startswith("data: "):
+                        data_str = line[6:].strip()
+                        logger.debug(f"Received data_str: {data_str}")
+                        if data_str == "[DONE]":
+                            # 스트리밍 종료 신호를 받으면 누적된 결과를 저장
+                            self.document.result = self.sum_result
+                            self.document.save()
+                            logger.debug(f"Document saved with result: {self.sum_result}")
+                            yield f"data: [DONE]\n\n"
+                            return
+                        try:
+                            data = json.loads(data_str)
+                            content = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                            logger.debug(f"Extracted content: {content}")
+                            if content:
+                                self.sum_result += content
+                                # 클라이언트에 순수한 텍스트만 전달 (ensure_ascii=False)
+                                yield f"data: {json.dumps({'content': content}, ensure_ascii=False)}\n\n"
+                                logger.debug(f"Yielded content: {content}")
+                        except json.JSONDecodeError as e:
+                            # JSON 파싱 에러 발생 시 에러 메시지 전달 (ensure_ascii=False)
+                            error_message = f"JSONDecodeError: {str(e)}"
+                            yield f"data: {json.dumps({'error': error_message}, ensure_ascii=False)}\n\n"
+                            logger.error(error_message)
+        except Exception as e:
+            error_message = f"Exception in generator: {str(e)}"
+            yield f"data: {json.dumps({'error': error_message}, ensure_ascii=False)}\n\n"
+            logger.error(error_message)
+
+    def call_deepseek_api_stream(self, prompt):
+        api_url = "https://api.deepseek.com/v1/chat/completions"
+        api_key = settings.DEEPSEEK_API_KEY
+
+        payload = {
+            "model": "deepseek-chat",
+            "messages": [
+                {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
+                {"role": "user", "content": prompt}
+            ],
+            "stream": True
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+
+        try:
+            with requests.post(api_url, json=payload, headers=headers, stream=True) as response:
+                if response.status_code != 200:
+                    try:
+                        error_msg = response.json().get("error", "Unknown error occurred.")
+                    except ValueError:
+                        error_msg = "Unknown error occurred."
+                    logger.error(f"DeepSeek API failed with status {response.status_code}: {error_msg}")
+                    raise Exception(f"DeepSeek API failed: {error_msg}")
+
+                for chunk in response.iter_content(chunk_size=None):
+                    if chunk:
+                        decoded_chunk = chunk.decode("utf-8")
+                        logger.debug(f"Received chunk: {decoded_chunk}")
+                        yield decoded_chunk
+        except requests.RequestException as e:
+            error_message = f"RequestException: {str(e)}"
+            logger.error(error_message)
+            raise Exception(error_message)
+# SSL 인증서 파일 경로 설정
+os.environ["SSL_CERT_FILE"] = certifi.where()
