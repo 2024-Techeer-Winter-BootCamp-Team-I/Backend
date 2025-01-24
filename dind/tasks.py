@@ -29,7 +29,7 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
             network = "directory_DevSketch-Net",
         )
 
-        container = client.containers.get(container_name)
+        #container = client.containers.get(container_name)
 
         # 도커 데몬 준비 대기
         start_time = time.time()
