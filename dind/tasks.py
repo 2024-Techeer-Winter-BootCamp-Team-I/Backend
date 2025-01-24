@@ -1,5 +1,4 @@
 import time
-from asyncio import timeout
 
 import docker
 from celery import shared_task
@@ -34,7 +33,7 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
 
         # 도커 데몬 준비 대기
         start_time = time.time()
-        while time.time() - start_time < timeout:
+        while time.time() - start_time < 30:
             try:
                 container = client.containers.get(container_name)
                 print(f"Container '{container_name}' found.")
