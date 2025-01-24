@@ -39,26 +39,29 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
         else:
             raise Exception("도커 데몬 준비 실패.")
 
-            # Git 및 도커 컴포즈 설치
-            install_commands = (
-                "apk add --no-cache curl git && "
-                "curl -L https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose && "
-                "chmod +x /usr/local/bin/docker-compose && "
-                "mkdir -p /app"
-            )
-            exit_code, output = container.exec_run(['/bin/sh', '-c', install_commands], tty=True, privileged=True)
+            # Git 클론
+            clone_command = f"git clone {github_url}"
+            exit_code, output = container.exec_run(clone_command, tty=True, privileged=True)
             if exit_code != 0:
-                raise Exception(f"도커 컴포즈 및 git 설치 실패: {output.decode()}")
+                raise Exception({output.decode()})
 
-            # Git 클론 및 디렉토리 확인
-            clone_command = f"git clone {github_url} /app/{repo_name}"
-            container.exec_run(clone_command, tty=True, privileged=True)
+            # /app/{repo_name} 디렉토리 확인
+            check_dir_command = f"ls {repo_name}"
+            exit_code, output = container.exec_run(check_dir_command)
+            if exit_code != 0:
+                raise Exception({output.decode()})
+
+            # docker-compose.yml 파일 확인
+            check_compose_command = f"ls {repo_name}/docker-compose.yml"
+            exit_code, output = container.exec_run(check_compose_command)
+            if exit_code != 0:
+                raise Exception({output.decode()})
 
             # docker-compose 실행
-            compose_command = f"docker-compose -f /app/{repo_name}/docker-compose.yml up --build -d"
+            compose_command = f"docker-compose -f {repo_name}/docker-compose.yml up --build -d"
             exit_code, output = container.exec_run(compose_command, tty=True, privileged=True)
             if exit_code != 0:
-                raise Exception(f"docker-compose 실행 실패: {output.decode()}")
+                raise Exception({output.decode()})
 
             return {"message": "도커 컨테이너 생성 및 서비스 실행 성공"}
 

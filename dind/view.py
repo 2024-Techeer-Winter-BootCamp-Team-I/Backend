@@ -50,6 +50,7 @@ def create_dind_handler(request):
             container = client.containers.run(
                 image="docker:dind",
                 name=container_name,
+                tty=True,
                 privileged=True,
                 detach=True,
                 labels={
@@ -72,26 +73,9 @@ def create_dind_handler(request):
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
-            #도커 컴포즈 및 git 설치 및 /app 디렉토리 생성
-            install_commands = (
-                "apk add --no-cache curl git && "
-                "curl -L https://github.com/docker/compose/releases/download/v2.20.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose && "
-                "chmod +x /usr/local/bin/docker-compose && "
-                "mkdir -p /app"
-            )
-            exit_code, output = container.exec_run(
-                ['/bin/sh', '-c', install_commands],
-                tty=True,
-                privileged=True
-            )
-            if exit_code != 0:
-                return Response(
-                    {"error": f"도커 컴포즈 및 git 설치 실패: {output.decode()}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
 
             #Git 클론
-            clone_command = f"git clone {github_url} /app/{repo_name}"
+            clone_command = f"git clone {github_url}"
             exit_code, output = container.exec_run(clone_command, tty=True, privileged=True)
             if exit_code != 0:
                 return Response(
@@ -100,16 +84,16 @@ def create_dind_handler(request):
                 )
 
              # /app/{repo_name} 디렉토리 확인
-            check_dir_command = f"ls /app/{repo_name}"
+            check_dir_command = f"ls {repo_name}"
             exit_code, output = container.exec_run(check_dir_command)
             if exit_code != 0:
                 return Response(
-                    {"error": f"/app/{repo_name} 디렉토리 확인 실패: {output.decode()}"},
+                    {"error": f"{repo_name} 디렉토리 확인 실패: {output.decode()}"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 
             # docker-compose.yml 파일 확인
-            check_compose_command = f"ls /app/{repo_name}/docker-compose.yml"
+            check_compose_command = f"ls {repo_name}/docker-compose.yml"
             exit_code, output = container.exec_run(check_compose_command)
             if exit_code != 0:
                 return Response(
@@ -118,7 +102,7 @@ def create_dind_handler(request):
                 )
 
             #docker-compose 실행
-            compose_command = f"docker-compose -f /app/{repo_name}/docker-compose.yml up --build -d"
+            compose_command = f"docker-compose -f {repo_name}/docker-compose.yml up --build -d"
             exit_code, output = container.exec_run(compose_command, tty=True, privileged=True)
             if exit_code != 0:
                 return Response(
