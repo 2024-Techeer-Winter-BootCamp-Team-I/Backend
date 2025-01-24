@@ -175,7 +175,7 @@ redis_client = redis.Redis(host="redis", port=6379, decode_responses=True)
 )
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
-def create_dind_task(request):
+def create_dind_task_view(request):
     serializer = CreateDindSerializer(data=request.data)
 
     if serializer.is_valid():
