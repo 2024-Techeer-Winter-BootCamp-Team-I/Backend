@@ -44,32 +44,35 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
             except Exception as e:
                 print(f"An unexpected error occurred: {e}")
                 time.sleep(1)
-        else:
-            # Git 클론
-            clone_command = f"git clone {github_url}"
-            exit_code, output = container.exec_run(clone_command, tty=True, privileged=True)
-            if exit_code != 0:
-                raise Exception({output.decode()})
 
-            # /app/{repo_name} 디렉토리 확인
-            check_dir_command = f"ls {repo_name}"
-            exit_code, output = container.exec_run(check_dir_command)
-            if exit_code != 0:
-                raise Exception({output.decode()})
+        print("작업실행1")
+        clone_command = f"git clone {github_url}"
+        exit_code, output = container.exec_run(clone_command, tty=True, privileged=True)
+        if exit_code != 0:
+            raise Exception({output.decode()})
 
-            # docker-compose.yml 파일 확인
-            check_compose_command = f"ls {repo_name}/docker-compose.yml"
-            exit_code, output = container.exec_run(check_compose_command)
-            if exit_code != 0:
-                raise Exception({output.decode()})
+        print("작업실행2")
+        # /app/{repo_name} 디렉토리 확인
+        check_dir_command = f"ls {repo_name}"
+        exit_code, output = container.exec_run(check_dir_command)
+        if exit_code != 0:
+            raise Exception({output.decode()})
 
-            # docker-compose 실행
-            compose_command = f"docker-compose -f {repo_name}/docker-compose.yml up --build -d"
-            exit_code, output = container.exec_run(compose_command, tty=True, privileged=True)
-            if exit_code != 0:
-                raise Exception({output.decode()})
+        print("작업실행3")
+        # docker-compose.yml 파일 확인
+        check_compose_command = f"ls {repo_name}/docker-compose.yml"
+        exit_code, output = container.exec_run(check_compose_command)
+        if exit_code != 0:
+            raise Exception({output.decode()})
 
-            return {"message": "도커 컨테이너 생성 및 서비스 실행 성공"}
+        print("작업실행4")
+        # docker-compose 실행
+        compose_command = f"docker-compose -f {repo_name}/docker-compose.yml up --build -d"
+        exit_code, output = container.exec_run(compose_command, tty=True, privileged=True)
+        if exit_code != 0:
+            raise Exception({output.decode()})
+
+        return {"message": "도커 컨테이너 생성 및 서비스 실행 성공"}
 
     except Exception as e:
         return {"error": str(e)}
