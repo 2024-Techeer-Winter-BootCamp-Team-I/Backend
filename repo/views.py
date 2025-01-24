@@ -32,10 +32,10 @@ logger = logging.getLogger(__name__)
         properties={
             'organization_name': openapi.Schema(type=openapi.TYPE_STRING, description='레포지토리를 생성할 조직 이름'),
             'repo_name': openapi.Schema(type=openapi.TYPE_STRING, description='생성할 레포지토리 이름'),
-            'private': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='비공개 레포지토리 여부 (기본값: false)'),
+            'private': openapi.Schema(type=openapi.TYPE_BOOLEAN, description='비공개 레포지토리 여부 (기본값: false)',default=False),
             'project_dir': openapi.Schema(type=openapi.TYPE_STRING, description='프로젝트 디렉터리 경로'),
         },
-        required=['repo_name', 'project_dir']  # project_dir도 필수로 변경
+        required=['repo_name', 'project_dir']  
     ),
     responses={
         201: openapi.Response(
