@@ -73,7 +73,7 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
 
         print("작업실행4")
         # docker-compose 실행
-        compose_command = f"docker-compose -f {repo_name}/docker-compose.yml up --build -d"
+        compose_command = f"sudo docker-compose -f {repo_name}/docker-compose.yml up --build -d"
         exit_code, output = container.exec_run(compose_command, tty=True, privileged=True)
         if exit_code != 0:
             raise Exception({output.decode()})
