@@ -243,6 +243,10 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # 클라이언트 도메인
 ]
 
+CORS_EXPOSE_HEADERS = [
+    'x-document-id',
+]
+
 SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_CLIENT_ID')  # GitHub OAuth App의 Client ID
 SOCIAL_AUTH_GITHUB_SECRET = os.getenv('GITHUB_CLIENT_SECRET')  # GitHub OAuth App의 Client Secret
 
