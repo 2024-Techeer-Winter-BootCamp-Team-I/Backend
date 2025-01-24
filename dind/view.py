@@ -2,12 +2,15 @@ import logging
 import time
 import os
 
+import redis
 import docker
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+
+from dind.tasks import create_dind_task
 
 from dind.serializers import CreateDindSerializer
 
@@ -155,3 +158,51 @@ def wait_for_docker(container):
         time.sleep(1)
 
     return False
+
+#-----------------------------------------------------------------------------------
+
+# Redis 클라이언트 생성
+redis_client = redis.Redis(host="redis", port=6379, decode_responses=True)
+
+@swagger_auto_schema(
+    methods=['POST'],
+    operation_summary="도커 컨테이너 생성 API",
+    request_body=CreateDindSerializer,
+    responses={
+        202: "작업 시작됨",
+        400: "Bad Request",
+    }
+)
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def create_dind_task(request):
+    serializer = CreateDindSerializer(data=request.data)
+
+    if serializer.is_valid():
+        github_name = serializer.validated_data.get("github_name")
+        github_url = serializer.validated_data.get("github_url")
+        repo_name = serializer.validated_data.get("repo_name")
+        base_domain = os.environ.get("BASE_DOMAIN", "localhost")
+
+        # Celery 태스크 호출
+        task = create_dind_task.apply_async(
+            args=(github_name, github_url, repo_name, base_domain)
+        )# Redis에 알림 전송
+        try:
+            redis_client.publish(
+                "task_updates",
+                f"Task {task.id} 시작됨: {github_name} 프로젝트 도커 컨테이너 생성"
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Redis 알림 실패: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response(
+            {"message": "작업 시작됨", "task_id": task.id},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
