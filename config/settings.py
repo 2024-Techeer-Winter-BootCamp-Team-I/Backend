@@ -203,7 +203,7 @@ REST_FRAMEWORK = {
 AUTH_USER_MODEL = 'login.User'
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),  # Access Token 유효 기간
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=7),  # Access Token 유효 기간
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),  # Refresh Token 유효 기간
     'ROTATE_REFRESH_TOKENS': False,  # Refresh Token 갱신 여부
     'BLACKLIST_AFTER_ROTATION': True,  # Refresh Token 갱신 후 이전 토큰 블랙리스트 추가
