@@ -77,8 +77,8 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
         compose_command = f"dockerd"
         exit_code, output = container.exec_run(compose_command, tty=True, privileged=True)
         print({output.decode()})
-        if exit_code != 0:
-            raise Exception({output.decode()})
+        #if exit_code != 0:
+        #    raise Exception({output.decode()})
         time.sleep(5)
 
         print("작업실행4")
