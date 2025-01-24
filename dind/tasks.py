@@ -11,7 +11,7 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
 
     try:
         # DIND 컨테이너 생성
-        container = client.containers.run(
+        container1 = client.containers.run(
             image = "docker:dind",
             name = container_name,
             privileged=True,
@@ -29,11 +29,13 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
             network = "directory_DevSketch-Net",
         )
 
+        container = client.containers.get(container_name)
+
         # 도커 데몬 준비 대기
         start_time = time.time()
         while time.time() - start_time < 30:
-            exit_code, _ = container.exec_run("docker info")
-            if exit_code == 0:
+            container = client.containers.get(container_name)
+            if container:
                 break
             time.sleep(1)
         else:
