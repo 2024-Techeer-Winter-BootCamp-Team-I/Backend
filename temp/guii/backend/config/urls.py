@@ -17,7 +17,10 @@ schema_view = get_schema_view(
    permission_classes=(permissions.AllowAny,),
 )
 
+from django.urls import include
+
 urlpatterns = [
+    path('api/', include('generated_app.urls')),
     path('admin/', admin.site.urls),
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
 ]

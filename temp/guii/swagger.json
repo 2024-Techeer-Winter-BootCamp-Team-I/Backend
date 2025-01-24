@@ -1,0 +1,282 @@
+
+    {
+        "swagger": "2.0",
+        "info": {
+            "title": "API Documentation",
+            "version": "1.0.0"
+        },
+        "paths": {
+            ```json
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "AI Image Generation and SMS Service",
+    "description": "API for generating images using AI and sending them via SMS.",
+    "version": "1.0.0"
+  },
+  "host": "api.example.com",
+  "basePath": "/v1",
+  "schemes": ["https"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "paths": {
+    "/generate-image": {
+      "post": {
+        "summary": "Generate an image using AI",
+        "description": "Generates an image based on the provided description.",
+        "parameters": [
+          {
+            "name": "description",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "description": {
+                  "type": "string",
+                  "description": "Description of the image to be generated."
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image generated successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "image_url": {
+                  "type": "string",
+                  "description": "URL of the generated image."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/send-sms": {
+      "post": {
+        "summary": "Send an image via SMS",
+        "description": "Sends the generated image via SMS to the specified recipient.",
+        "parameters": [
+          {
+            "name": "sms_request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "image_url": {
+                  "type": "string",
+                  "description": "URL of the image to be sent."
+                },
+                "recipient_number": {
+                  "type": "string",
+                  "description": "Recipient's phone number."
+                },
+                "message": {
+                  "type": "string",
+                  "description": "Message content to be sent along with the image."
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SMS sent successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "description": "Status of the SMS delivery."
+                },
+                "transaction_id": {
+                  "type": "string",
+                  "description": "Unique ID for the SMS transaction."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/save-image": {
+      "post": {
+        "summary": "Save the generated image",
+        "description": "Saves the generated image to the server.",
+        "parameters": [
+          {
+            "name": "image_url",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "image_url": {
+                  "type": "string",
+                  "description": "URL of the image to be saved."
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image saved successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "saved_image_path": {
+                  "type": "string",
+                  "description": "Path where the image is saved."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/edit-image": {
+      "post": {
+        "summary": "Edit the generated image",
+        "description": "Edits the generated image based on the provided options.",
+        "parameters": [
+          {
+            "name": "edit_request",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "image_url": {
+                  "type": "string",
+                  "description": "URL of the image to be edited."
+                },
+                "edit_options": {
+                  "type": "object",
+                  "description": "Options for editing the image."
+                }
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Image edited successfully",
+            "schema": {
+              "type": "object",
+              "properties": {
+                "edited_image_url": {
+                  "type": "string",
+                  "description": "URL of the edited image."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    },
+    "/sms-history": {
+      "get": {
+        "summary": "Retrieve SMS history",
+        "description": "Retrieves the SMS history for a specific user.",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": true,
+            "type": "string",
+            "description": "ID of the user to retrieve SMS history for."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SMS history retrieved successfully",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "transaction_id": {
+                    "type": "string",
+                    "description": "Unique ID for the SMS transaction."
+                  },
+                  "recipient_number": {
+                    "type": "string",
+                    "description": "Recipient's phone number."
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "Message content sent."
+                  },
+                  "status": {
+                    "type": "string",
+                    "description": "Status of the SMS delivery."
+                  },
+                  "timestamp": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Timestamp of the SMS transaction."
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "ErrorResponse": {
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string",
+          "description": "Error message."
+        },
+        "code": {
+          "type": "integer",
+          "description": "Error code."
+        }
+      }
+    }
+  }
+}
+```
+        }
+    }
+    
