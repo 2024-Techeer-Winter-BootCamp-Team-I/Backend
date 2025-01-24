@@ -211,6 +211,8 @@ def documents(request):
                 "message": str(e),
             }, status=500)
 
+#----------------------------------------------------------
+
 @swagger_auto_schema(
     method='put',
     operation_summary="문서 수정 API",
@@ -266,18 +268,17 @@ def update_document(request, document_id):
 
             def event_stream():
                 try:
-                    yield f"data: Review start.\n\n"
-                    time.sleep(1)
-
                     for char in review_result:
-                        yield f"data: {char}\n\n"
-                        time.sleep(0)
+                        yield f"data: {{\"content\": \"{char}\"}}\n\n"
 
-                    yield f"data: Review completed.\n\n"
+                        time.sleep(0.01)
+
                 except Exception as e:
                     yield f"data: {{\"error\": \"{str(e)}\"}}\n\n"
 
-            return StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+            response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+            response["X-Document-ID"] = str(document_id)
+            return response
 
         except Document.DoesNotExist:
             return JsonResponse({
@@ -296,6 +297,8 @@ def update_document(request, document_id):
             "status": "error",
             "errors": serializer.errors
         }, status=400)
+
+#----------------------------------------------------------
 
 @swagger_auto_schema(
     method = 'post',
@@ -378,6 +381,8 @@ def dev_document(request, document_id):
         "data": final_result,
     }, status = status.HTTP_200_OK)
 
+#----------------------------------------------------------
+
 def call_deepseek_api(prompt):
     api_url = "https://api.deepseek.com/v1/chat/completions"
     api_key = settings.DEEPSEEK_API_KEY
@@ -406,6 +411,8 @@ def call_deepseek_api(prompt):
 
 # SSL 인증서 파일 경로 설정
 os.environ["SSL_CERT_FILE"] = certifi.where()
+
+#----------------------------------------------------------
 
 @swagger_auto_schema(
     method='post',
@@ -499,6 +506,7 @@ def save_document_part(request, document_id):
             "message": "설계 문서를 찾을 수 없습니다."
         }, status=404)
 
+#----------------------------------------------------------
 
 @api_view(['POST'])
 def setup_project(request, document_id):
