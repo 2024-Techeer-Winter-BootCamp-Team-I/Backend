@@ -46,7 +46,8 @@ INSTALLED_APPS = [
     'Tech_Stack', # 기술 스택 관련 앱앱
     'rest_framework_simplejwt.token_blacklist',  # 토큰 블랙리스트 앱 추가
     'dind',
-    'corsheaders'
+    'corsheaders',
+    'django_prometheus'
 
 ]
 
@@ -77,6 +78,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 SITE_ID = 1
 
 MIDDLEWARE = [
+    'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -85,7 +87,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'allauth.account.middleware.AccountMiddleware', 
+    'allauth.account.middleware.AccountMiddleware',
+    'django_prometheus.middleware.PrometheusAfterMiddleware',
+
 ]
 
 ROOT_URLCONF = 'config.urls'

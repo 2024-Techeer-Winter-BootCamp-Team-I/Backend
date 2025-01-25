@@ -69,17 +69,16 @@ def create_dind_task(github_name, github_url, repo_name, base_domain):
         if exit_code != 0:
             raise Exception({output.decode()})
 
-        time.sleep(3)
-        #client = docker.from_env()
-        #container = client.containers.get(container_name)
+        time.sleep(5)
+        client = docker.from_env()
+        container = client.containers.get(container_name)
 
         # docker-compose 실행
-        compose_command = f"dockerd"
+        compose_command = f"docker-compose -f {repo_name}/docker-compose.yml up --build -d"
         exit_code, output = container.exec_run(compose_command, tty=True, privileged=True)
-        print({output.decode()})
-        #if exit_code != 0:
-        #    raise Exception({output.decode()})
-        time.sleep(5)
+        if exit_code != 0:
+            raise Exception({output.decode()})
+
 
         print("작업실행4")
         # docker-compose 실행
