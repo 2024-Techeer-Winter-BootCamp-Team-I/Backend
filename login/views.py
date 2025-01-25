@@ -19,7 +19,6 @@ from django.db import transaction
 from rest_framework.permissions import AllowAny
 from login.serializers import LoginResponseSerializer
 from login.serializers import UserProfileSerializer
-from .models import Project
 from document.models import Document
 from django.db.models import Q
 from django.http import HttpResponseRedirect
@@ -43,7 +42,7 @@ class LoginGithubView(APIView):
     )
     def get(self, request):
         # 깃허브 oauth2 로그인 페이지로 리다이렉트
-        github_oauth_url = f"https://github.com/login/oauth/authorize?client_id={os.getenv('GITHUB_CLIENT_ID')}&redirect_uri={os.getenv('GITHUB_REDIRECT_URI')}&scope=repo user:email"
+        github_oauth_url = f"https://github.com/login/oauth/authorize?client_id={os.getenv('GITHUB_CLIENT_ID')}&redirect_uri={os.getenv('GITHUB_REDIRECT_URI')}&scope=repo user:email read:org"
         return redirect(github_oauth_url)
 
 class CodeView(APIView):
@@ -128,7 +127,8 @@ class LoginGithubCallbackView(APIView):
             if not primary_email:
                 primary_email = f"{user_data['login']}@example.com"  # 임시 이메일 생성
 
-        password = 1234
+        
+        
         # 사용자 생성 또는 가져오기
         user, created = self.social_user_get_or_create(
             github_username=user_data["login"],
@@ -218,14 +218,14 @@ class MyPageView(APIView):
         user = request.user
 
         # 사용자와 연관된 프로젝트 이름 가져오기
-        projects = Project.objects.filter(user=user)  # Project는 사용자와 FK로 연결되어 있음
-        project_names = [project.name for project in projects]
+        documents = Document.objects.filter(user_id=user.id)  # Document는 사용자와 FK로 연결되어 있음
+        document_titles = [document.title for document in documents]
 
         # 사용자 정보 직렬화
         data = {
             "github_username": user.github_username,  # 사용자의 GitHub 이름
             "email":user.email,
-            "project_names": project_names    # 사용자의 프로젝트 이름 목록
+            "document_titles": document_titles    # 사용자의 프로젝트 이름 목록
         }
         serializer = UserProfileSerializer(data=data)
 
@@ -284,19 +284,19 @@ class MyPageView(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
-class ProjectIDView(APIView):
+class DocumentIDView(APIView):
     permission_classes = [IsAuthenticated]  # 로그인된 사용자만 접근 가능
     
     @swagger_auto_schema(
         operation_summary="프로젝트 상세 조회 API",
-        operation_description="로그인된 사용자가 소유한 프로젝트의 이름과 관련된 저장된 문서를 조회합니다.",
+        operation_description="로그인된 사용자가 소유한 문서이름과 관련된 저장된 문서를 조회합니다.",
         responses={
             200: openapi.Response(
-                description="프로젝트 조회 성공",
+                description="문서 조회 성공",
                 examples={
                     "application/json": {
-                        "project_id": 1,
-                        "project_name": "Sample Project",
+                        "document_id": 1,
+                        "document_title": "Sample Document",
                         "documents": [
                             {
                                 "title": "Sample Document 1",
@@ -325,59 +325,54 @@ class ProjectIDView(APIView):
             ),
         }
     )
-    def get(self, request, project_id):  # project_id를 경로 파라미터로 받음
+    def get(self, request, document_id):  # document_id를 경로 파라미터로 받음
         try:
-            # 프로젝트 ID로 프로젝트 객체 가져오기
-            project = Project.objects.get(id=project_id)
-            # 프로젝트에서 사용자 ID 가져오기
-            user_id = project.user.id
-            project_name = project.name
+            # document_id로 문서 객체 가져오기
+            document = Document.objects.get(id=document_id)
 
-            # 사용자 ID와 프로젝트 이름으로 문서 필터링 (하나라도 저장된 상태만 필터링)
-            matching_documents = Document.objects.filter(
-                user_id=user_id,
-                title=project_name
-            ).filter(
-                Q(is_diagram_saved=True) | Q(is_erd_saved=True) | Q(is_api_saved=True)  # 하나라도 저장된 상태
-            ).values('title', 'erd_code', 'diagram_code')
+            # 응답 데이터 초기화
+            response_data = {
+                "document_id": document.id,
+                "document_title": document.title,
+            }
 
-            if not matching_documents:
-                return Response(
-                    {"error": "저장된 문서가 없습니다."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
+            # 저장된 코드만 응답에 추가
+            if document.is_erd_saved:
+                response_data["erd_code"] = document.erd_code
+            if document.is_diagram_saved:
+                response_data["diagram_code"] = document.diagram_code
+            if document.is_api_saved:
+                response_data["api_code"] = document.api_code
 
+            # 저장된 코드가 하나도 없는 경우 메시지 추가
+            if not (document.is_diagram_saved or document.is_erd_saved or document.is_api_saved):
+                response_data["message"] = "저장된 문서가 없습니다."
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except Document.DoesNotExist:
             return Response(
-                {
-                    "project_id": project_id,
-                    "project_name": project_name,
-                    "documents": list(matching_documents)
-                },
-                status=status.HTTP_200_OK
-            )
-        except Project.DoesNotExist:
-            return Response(
-                {"error": "프로젝트를 찾을 수 없습니다."},
+                {"error": "문서를 찾을 수 없습니다."},
                 status=status.HTTP_404_NOT_FOUND
             )
 
     @swagger_auto_schema(
-        operation_summary="프로젝트 삭제 API",
-        operation_description="로그인된 사용자가 소유한 프로젝트를 삭제합니다. 해당 프로젝트와 관련된 모든 문서도 삭제됩니다.",
+        operation_summary="설계 삭제 API",
+        operation_description="로그인된 사용자가 소유한 문서내용을 삭제합니다.",
         responses={
             200: openapi.Response(
-                description="프로젝트 삭제 성공",
+                description="설계 삭제 성공",
                 examples={
                     "application/json": {
-                        "message": "프로젝트 삭제 성공"
+                        "message": "삭제 성공"
                     }
                 }
             ),
             404: openapi.Response(
-                description="프로젝트를 찾을 수 없음",
+                description="찾을 수 없음",
                 examples={
                     "application/json": {
-                        "error": "프로젝트를 찾을 수 없습니다."
+                        "error": "설계내용을 찾을 수 없습니다."
                     }
                 }
             ),
@@ -385,37 +380,34 @@ class ProjectIDView(APIView):
                 description="잘못된 요청",
                 examples={
                     "application/json": {
-                        "error": "해당 사용자가 아닌 다른 사용자의 프로젝트는 삭제할 수 없습니다."
+                        "error": "해당 사용자가 아닌 다른 사용자의 설계는 삭제할 수 없습니다."
                     }
                 }
             ),
         }
     )
-    def delete(self, request, project_id):
+    def delete(self, request, document_id):  # document_id를 경로 파라미터로 받음
         try:
-            # 프로젝트 객체 가져오기
-            project = Project.objects.get(id=project_id)
+            # 문서 객체 가져오기
+            document = Document.objects.get(id=document_id)
 
-            # 프로젝트가 로그인된 사용자의 것인지 확인
-            if project.user != request.user:
+            # 문서가 로그인된 사용자의 것인지 확인
+            if document.user_id != request.user:
                 return Response(
-                    {"error": "해당 사용자가 아닌 다른 사용자의 프로젝트는 삭제할 수 없습니다."},
+                    {"error": "해당 사용자가 아닌 다른 사용자의 문서는 삭제할 수 없습니다."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # 프로젝트와 관련된 모든 문서 삭제
-            Document.objects.filter(user_id=request.user, title=project.name).delete()
-
-            # 프로젝트 삭제
-            project.delete()
+            # 문서 삭제
+            document.delete()
 
             return Response(
-                {"message": "프로젝트 삭제 성공"},
+                {"message": "문서 삭제 성공"},
                 status=status.HTTP_200_OK
             )
-        except Project.DoesNotExist:
+        except Document.DoesNotExist:
             return Response(
-                {"error": "프로젝트를 찾을 수 없습니다."},
+                {"error": "문서를 찾을 수 없습니다."},
                 status=status.HTTP_404_NOT_FOUND
             )
             
@@ -456,6 +448,7 @@ class UserDetailsView(APIView):
     
 class RefreshTokenView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []  # 인증 비활성화
 
     @swagger_auto_schema(
         request_body=openapi.Schema(

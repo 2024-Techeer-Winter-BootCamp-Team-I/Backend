@@ -148,10 +148,6 @@ def documents(request):
                     result=""  # 초기 result는 빈 문자열
                 )
 
-                # Project 생성 또는 가져오기
-                project_name = title
-                Project.objects.get_or_create(user=user, name=project_name)
-
                 document_id = document.id
 
                 # 스트리밍을 처리할 DocumentStream 객체 생성
