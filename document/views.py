@@ -81,95 +81,42 @@ def documents(request):
                 content = serializer.validated_data.get("content")
                 requirements = serializer.validated_data.get("requirements", "No requirements provided")
 
-                # DeepSeek API 호출을 위한 프롬프트 생성
-                prompt = f"""
-                    Title: {title}
-                    Content: {content}
-                    Requirements: {requirements}
-
-                    위 내용을 바탕으로 체계적인 기능명세서를 작성해주세요. 다음 지시사항을 정확히 따라주세요:
-
-                    1. **문서 구조**
-                        - 문서는 다음과 같은 섹션으로 구성되어야 합니다:
-                        1. **시스템 목적**: 프로젝트의 목적과 주요 기능을 간략히 설명하세요.
-                        2. **기능 요구사항**: 사용자 요구사항을 기반으로 상세한 기능 목록을 작성하세요. 각 기능은 사용자 스토리 형식(예: "사용자는 [X]를 할 수 있어야 한다")으로 작성하세요.
-
-                    2. **상세 설명**
-                        - 각 섹션은 명확하고 간결하게 작성되어야 합니다.
-
-                    3. **모듈화**
-                        - 문서를 모듈화하여 각 섹션이 독립적으로 이해될 수 있도록 하세요.
-                        - 각 모듈은 간단한 설명과 함께 명확하게 구분되어야 합니다.
-
-                    4. **출력 형식**
-                        - 최종 문서는 바로 제출할 수 있는 형태로 작성되어야 합니다.
-                        - 출력은 마크다운 형식이 아닌 빠르게 출력되도록 문서로만 해주세요.(#,** 등 제외)
-                        - 불필요한 설명이나 서론은 생략하고, 실제 문서 내용만 출력하세요.
-
-                    5. **추가 요구사항**
-                        - 현업에서 바로 사용할 수 있도록 전문적이고 실용적인 언어를 사용하세요.
-                        - 가능한 한 구체적이고 명확하게 작성하세요.
-                        - 마지막 요약은 빼주세요.
-                        
-                        **출력 예시**
-                        시스템 목적:
-                        - 비즈니스 목적: 사용자가 상품을 쉽게 조회하고 주문할 수 있도록 하는 것입니다.
-                        - 기술적 목적: 안정적이고 확장 가능한 온라인 쇼핑몰 시스템을 구축하는 것입니다.
-
-                        기능 요구사항:
-                        1. 사용자는 상품을 조회할 수 있어야 한다. (우선순위: 높음)
-                        2. 사용자는 상품을 주문할 수 있어야 한다. (우선순위: 높음)
-                        3. 사용자는 주문 내역을 조회할 수 있어야 한다. (우선순위: 중간)
-
-                        시나리오:
-                        1. 사용자가 로그인 페이지에 접속합니다.
-                        2. 이메일과 비밀번호를 입력합니다.
-                        3. 로그인 버튼을 클릭합니다.
-                        4. 시스템은 사용자 정보를 검증하고 로그인을 승인합니다.
-
-                        비기능 요구사항:
-                        - 시스템은 초당 100개의 요청을 처리할 수 있어야 합니다.
-                        - 사용자 데이터는 암호화되어 저장되어야 합니다.
-
-                        모듈화:
-                        - 로그인 모듈: 입력 - 이메일, 비밀번호 / 출력 - 사용자 정보, 토큰
-                        - 상품 조회 모듈: 입력 - 검색어 / 출력 - 상품 목록
-                        - 주문 모듈: 입력 - 상품 ID, 수량 / 출력 - 주문 번호, 결제 정보
-                        
-                        위의 출력 예시는 쇼핑몰 예시입니다. 사용자가 입력한 정보를 바탕으로 예시를 참고하여 출력해주세요.
-                    """
-
                 # Document 객체를 먼저 생성 (result는 빈 문자열로 초기화)
                 document = Document.objects.create(
-                    user_id=user,  # ForeignKey인 경우 'user'로 지정
-                    title=title,
-                    content=content,
-                    requirements=requirements,
-                    result=""  # 초기 result는 빈 문자열
+                    user_id = user,
+                    title = title,
+                    content = content,
+                    requirements = requirements,
+                    result = ""  # 초기 result는 빈 문자열
                 )
 
-                document_id = document.id
+                # Project 생성 또는 가져오기
+                project_name = title
+                Project.objects.get_or_create(user=user, name=project_name)
 
-                # 스트리밍을 처리할 DocumentStream 객체 생성
-                stream = DocumentStream(prompt, document)
+                return JsonResponse(
+                    {
+                    "id": document.id,
+                    "title": title,
+                    "content": content,
+                    "requirements": requirements,
+                    "result": ""
+                    },  status = status.HTTP_201_CREATED
+                )
 
-                # StreamingHttpResponse 생성
-                response = StreamingHttpResponse(stream, content_type="text/event-stream; charset=utf-8")
-                response["X-Document-ID"] = str(document_id)
-                return response
 
             except Exception as e:
                 logger.error(f"Error in documents view: {str(e)}")
                 return JsonResponse({
                     "status": "error",
                     "message": str(e)
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                }, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
 
             else:
                 return JsonResponse({
                     "status": "error",
                     "errors": serializer.errors
-                }, status=status.HTTP_400_BAD_REQUEST)
+                }, status = status.HTTP_400_BAD_REQUEST)
 
     elif request.method == "GET":
         # 문서 조회 로직
@@ -246,12 +193,12 @@ def update_document(request, document_id):
                         """
 
             # 스트리밍을 처리할 DocumentStream 객체 생성
-            stream = DocumentStream(prompt, document)
+            #stream = DocumentStream(prompt, document)
 
             # StreamingHttpResponse 생성 (charset=utf-8 명시)
-            response = StreamingHttpResponse(stream, content_type="text/event-stream; charset=utf-8")
-            response["X-Document-ID"] = str(document_id)
-            return response
+            #response = StreamingHttpResponse(stream, content_type="text/event-stream; charset=utf-8")
+            #response["X-Document-ID"] = str(document_id)
+            #return response
 
         except Document.DoesNotExist:
             return JsonResponse({
@@ -524,85 +471,174 @@ def call_deepseek_api(prompt):
         raise Exception(f"DeepSeek API failed: {error_msg}")
 
 
-# ----------------------------------------------------------
+#----------------------------------------------------------
 
-class DocumentStream:
-    def __init__(self, prompt, document):
-        self.prompt = prompt
-        self.document = document
-        self.sum_result = ""
-        logger.debug("Initialized DocumentStream")
+def call_deepseek_api_stream(prompt):
+    api_url = "https://api.deepseek.com/v1/chat/completions"
+    api_key = settings.DEEPSEEK_API_KEY
 
-    def __iter__(self):
-        try:
-            for chunk in self.call_deepseek_api_stream(self.prompt):
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [
+            {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
+            {"role": "user", "content": prompt}
+        ],
+        "stream": True
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    try:
+        with requests.post(api_url, json=payload, headers=headers, stream=True) as response:
+            if response.status_code != 200:
+                try:
+                    error_msg = response.json().get("error", "Unknown error occurred.")
+                except ValueError:
+                    error_msg = "Unknown error occurred."
+                logger.error(f"DeepSeek API failed with status {response.status_code}: {error_msg}")
+                raise Exception(f"DeepSeek API failed: {error_msg}")
+
+            for chunk in response.iter_content(chunk_size=None):
+                if chunk:
+                    decoded_chunk = chunk.decode("utf-8")
+                    logger.debug(f"Received chunk: {decoded_chunk}")
+                    yield decoded_chunk
+    except requests.RequestException as e:
+        error_message = f"RequestException: {str(e)}"
+        logger.error(error_message)
+        raise Exception(error_message)
+
+#----------------------------------------------------------
+
+@swagger_auto_schema(
+    method='get',
+    operation_summary="문서결과 스트리밍 API",
+    responses={
+        200: openapi.Response(description="문서 수정 성공"),
+        400: "Bad Request",
+        404: "Document Not Found",
+        500: "Internal Server Error",
+    },
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def stream_document(request, document_id):
+
+    user = request.user
+
+    try:
+        document = Document.objects.get(id = document_id, user_id = user.id)
+        prompt = f"""
+        
+                        Title: {document.title}
+                        Content: {document.content}
+                        Requirements: {document.requirements}
+
+                        위 내용을 바탕으로 체계적인 기능명세서를 작성해주세요. 다음 지시사항을 정확히 따라주세요:
+
+                        1. **문서 구조**
+                            - 문서는 다음과 같은 섹션으로 구성되어야 합니다:
+                            1. **시스템 목적**: 프로젝트의 목적과 주요 기능을 간략히 설명하세요.
+                            2. **기능 요구사항**: 사용자 요구사항을 기반으로 상세한 기능 목록을 작성하세요. 각 기능은 사용자 스토리 형식(예: "사용자는 [X]를 할 수 있어야 한다")으로 작성하세요.
+
+                        2. **상세 설명**
+                            - 각 섹션은 명확하고 간결하게 작성되어야 합니다.
+
+                        3. **모듈화**
+                            - 문서를 모듈화하여 각 섹션이 독립적으로 이해될 수 있도록 하세요.
+                            - 각 모듈은 간단한 설명과 함께 명확하게 구분되어야 합니다.
+
+                        4. **출력 형식**
+                            - 최종 문서는 바로 제출할 수 있는 형태로 작성되어야 합니다.
+                            - 출력은 마크다운 형식이 아닌 빠르게 출력되도록 문서로만 해주세요.(#,** 등 제외)
+                            - 불필요한 설명이나 서론은 생략하고, 실제 문서 내용만 출력하세요.
+
+                        5. **추가 요구사항**
+                            - 현업에서 바로 사용할 수 있도록 전문적이고 실용적인 언어를 사용하세요.
+                            - 가능한 한 구체적이고 명확하게 작성하세요.
+                            - 마지막 요약은 빼주세요.
+
+                            **출력 예시**
+                            시스템 목적:
+                            - 비즈니스 목적: 사용자가 상품을 쉽게 조회하고 주문할 수 있도록 하는 것입니다.
+                            - 기술적 목적: 안정적이고 확장 가능한 온라인 쇼핑몰 시스템을 구축하는 것입니다.
+
+                            기능 요구사항:
+                            1. 사용자는 상품을 조회할 수 있어야 한다. (우선순위: 높음)
+                            2. 사용자는 상품을 주문할 수 있어야 한다. (우선순위: 높음)
+                            3. 사용자는 주문 내역을 조회할 수 있어야 한다. (우선순위: 중간)
+
+                            시나리오:
+                            1. 사용자가 로그인 페이지에 접속합니다.
+                            2. 이메일과 비밀번호를 입력합니다.
+                            3. 로그인 버튼을 클릭합니다.
+                            4. 시스템은 사용자 정보를 검증하고 로그인을 승인합니다.
+
+                            비기능 요구사항:
+                            - 시스템은 초당 100개의 요청을 처리할 수 있어야 합니다.
+                            - 사용자 데이터는 암호화되어 저장되어야 합니다.
+
+                            모듈화:
+                            - 로그인 모듈: 입력 - 이메일, 비밀번호 / 출력 - 사용자 정보, 토큰
+                            - 상품 조회 모듈: 입력 - 검색어 / 출력 - 상품 목록
+                            - 주문 모듈: 입력 - 상품 ID, 수량 / 출력 - 주문 번호, 결제 정보
+
+                            위의 출력 예시는 쇼핑몰 예시입니다. 사용자가 입력한 정보를 바탕으로 예시를 참고하여 출력해주세요.
+                        """
+
+        def sse():
+            sum_result = ""
+
+            for chunk in call_deepseek_api_stream(prompt):
                 lines = chunk.strip().split("\n")
+
                 for line in lines:
                     if line.startswith("data: "):
                         data_str = line[6:].strip()
-                        logger.debug(f"Received data_str: {data_str}")
+
                         if data_str == "[DONE]":
-                            # 스트리밍 종료 신호를 받으면 누적된 결과를 저장
-                            self.document.result = self.sum_result
-                            self.document.save()
-                            logger.debug(f"Document saved with result: {self.sum_result}")
-                            yield f"data: [DONE]\n\n"
+                            document.result = sum_result
+                            document.save()
+                            yield "data: [DONE]\n\n"  # 클라이언트로 DONE 이벤트 전송
+
                             return
+
                         try:
-                            data = json.loads(data_str)
-                            content = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
-                            logger.debug(f"Extracted content: {content}")
+                            data_json = json.loads(data_str)
+                            content = data_json.get("choices", [{}])[0] \
+                                .get("delta", {}) \
+                                .get("content", "")
+
                             if content:
-                                self.sum_result += content
-                                # 클라이언트에 순수한 텍스트만 전달 (ensure_ascii=False)
+                                sum_result += content
                                 yield f"data: {json.dumps({'content': content}, ensure_ascii=False)}\n\n"
-                                logger.debug(f"Yielded content: {content}")
-                        except json.JSONDecodeError as e:
-                            # JSON 파싱 에러 발생 시 에러 메시지 전달 (ensure_ascii=False)
-                            error_message = f"JSONDecodeError: {str(e)}"
-                            yield f"data: {json.dumps({'error': error_message}, ensure_ascii=False)}\n\n"
-                            logger.error(error_message)
-        except Exception as e:
-            error_message = f"Exception in generator: {str(e)}"
-            yield f"data: {json.dumps({'error': error_message}, ensure_ascii=False)}\n\n"
-            logger.error(error_message)
 
-    def call_deepseek_api_stream(self, prompt):
-        api_url = "https://api.deepseek.com/v1/chat/completions"
-        api_key = settings.DEEPSEEK_API_KEY
+                        except json.JSONDecodeError:
+                            # 파싱 오류 시 에러를 SSE로 보낼 수도 있음
+                            yield f"data: {{'error':'JSONDecodeError'}}\n\n"
+            else:
+                pass
 
-        payload = {
-            "model": "deepseek-chat",
-            "messages": [
-                {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
-                {"role": "user", "content": prompt}
-            ],
-            "stream": True
-        }
+        response = StreamingHttpResponse(sse(), content_type="text/event-stream; charset=utf-8")
+        return response
 
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
 
-        try:
-            with requests.post(api_url, json=payload, headers=headers, stream=True) as response:
-                if response.status_code != 200:
-                    try:
-                        error_msg = response.json().get("error", "Unknown error occurred.")
-                    except ValueError:
-                        error_msg = "Unknown error occurred."
-                    logger.error(f"DeepSeek API failed with status {response.status_code}: {error_msg}")
-                    raise Exception(f"DeepSeek API failed: {error_msg}")
+    except Document.DoesNotExist:
+        return JsonResponse({
+            "status": "error",
+            "message": "Document not found or you don't have permission to access it."
+        }, status=status.HTTP_404_NOT_FOUND)
 
-                for chunk in response.iter_content(chunk_size=None):
-                    if chunk:
-                        decoded_chunk = chunk.decode("utf-8")
-                        logger.debug(f"Received chunk: {decoded_chunk}")
-                        yield decoded_chunk
-        except requests.RequestException as e:
-            error_message = f"RequestException: {str(e)}"
-            logger.error(error_message)
-            raise Exception(error_message)
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+#----------------------------------------------------------
+
 # SSL 인증서 파일 경로 설정
 os.environ["SSL_CERT_FILE"] = certifi.where()
