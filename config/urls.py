@@ -33,8 +33,10 @@ urlpatterns = [
         path("repos/", include('repo.urls')),  # 레포지토리 관련 URL
         path('tech-stack/', include('Tech_Stack.urls')),  # Tech_Stack 앱 URL 추가
         path("dinds/", include('dind.urls'))
+
     ])),
-    
+
+    path('', include('django_prometheus.urls')),
 ]
 
 

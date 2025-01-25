@@ -56,3 +56,4 @@ social-auth-app-django==5.4.2
 PyGithub>=2.0.0
 docker==7.1.0
 django-cors-headers==4.6.0
+django-prometheus==2.3.1
