@@ -217,15 +217,15 @@ class MyPageView(APIView):
         # 현재 로그인된 사용자 정보 가져오기
         user = request.user
 
-        # 사용자와 연관된 프로젝트 이름 가져오기
+        # 사용자와 연관된 프로젝트 정보 가져오기
         documents = Document.objects.filter(user_id=user.id)  # Document는 사용자와 FK로 연결되어 있음
-        document_titles = [document.title for document in documents]
+        document_list = [{"document_id": document.id, "title": document.title} for document in documents]
 
         # 사용자 정보 직렬화
         data = {
             "github_username": user.github_username,  # 사용자의 GitHub 이름
-            "email":user.email,
-            "document_titles": document_titles    # 사용자의 프로젝트 이름 목록
+            "email": user.email,
+            "document_titles": document_list  # 사용자의 프로젝트 정보 목록
         }
         serializer = UserProfileSerializer(data=data)
 
