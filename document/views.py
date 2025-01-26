@@ -96,7 +96,7 @@ def documents(request):
 
                 return JsonResponse(
                     {
-                    "id": document.id,
+                    "document_id": document.id,
                     "title": title,
                     "content": content,
                     "requirements": requirements,
