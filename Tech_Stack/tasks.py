@@ -38,9 +38,7 @@ def generate_models_from_erd(erd_code):
     """
     ERD 코드를 기반으로 Django 모델 코드를 생성합니다.
     """
-    models_code = """
-# Generated Django Models from ERD
-from django.db import models
+    models_code = """from django.db import models
 
 """
 
@@ -100,6 +98,23 @@ def clean_api_code(api_code):
     elif api_code.startswith("```") and api_code.endswith("```"):
         api_code = api_code[3:-3].strip()  # ``` 제거
     return api_code
+  
+def generate_swagger_from_api(api_code):
+    """
+    API 코드를 기반으로 Swagger 문서를 생성합니다.
+    """
+    return f"""
+    {{
+        "swagger": "2.0",
+        "info": {{
+            "title": "API Documentation",
+            "version": "1.0.0"
+        }},
+        "paths": {{
+            {api_code}
+        }}
+    }}
+    """
 
 def generate_api_endpoints(api_code, backend_tech_stack):
     """
@@ -122,7 +137,6 @@ def generate_api_endpoints(api_code, backend_tech_stack):
             
             # 동적으로 뷰 코드 생성
             views_code = """
-# Generated Django Views from API
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -138,18 +152,21 @@ import json
                 responses = method_spec.get("responses", {})
 
                 # 뷰 클래스 이름 생성 (Python 네이밍 규칙에 맞게 수정)
-                view_name = endpoint.replace("/", "_").replace("-", "_").strip("_").capitalize() + "View"
+                view_name = endpoint.replace("/", "_").replace("-", "_").strip("_").capitalize()
                 # 중괄호 {} 제거 및 CamelCase로 변환
                 view_name = re.sub(r'\{(\w+)\}', r'\1', view_name)  # {postid} -> postid
                 view_name = ''.join([word.capitalize() for word in view_name.split('_')])  # postid -> Postid
-
+                
+                # 대문자와 대문자 사이에 언더스코어 추가
+                view_name = re.sub(r'([A-Z])', r'_\1', view_name).strip('_')  # UsersUserid -> Users_Userid
+                
                 # 뷰 클래스 생성 (APIView 기반)
                 views_code += f"""
 class {view_name}(APIView):
     def {method}(self, request, *args, **kwargs):
         try:
-            data = request.data  # DRF의 request.data 사용
-            # 여기서 parameters를 처리
+            data = request.data  
+            
             return Response({responses.get("200", {}).get("schema", {})}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({{"error": str(e)}}, status=status.HTTP_400_BAD_REQUEST)
@@ -161,23 +178,6 @@ class {view_name}(APIView):
             raise ValueError(f"Error generating API endpoints: {e}")
     else:
         raise ValueError("지원되지 않는 백엔드 기술 스택입니다.")
-   
-def generate_swagger_from_api(api_code):
-    """
-    API 코드를 기반으로 Swagger 문서를 생성합니다.
-    """
-    return f"""
-    {{
-        "swagger": "2.0",
-        "info": {{
-            "title": "API Documentation",
-            "version": "1.0.0"
-        }},
-        "paths": {{
-            {api_code}
-        }}
-    }}
-    """
 
 def generate_urls_from_views(app_name):
     """
@@ -315,7 +315,7 @@ def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, fro
             shutil.copytree(backend_template_dir, backend_dir)
 
             # Django 앱 생성 및 설정 (기존 코드)
-            app_name = "generated_app"
+            app_name = "app"
             app_dir = os.path.join(backend_dir, app_name)
             os.chdir(backend_dir)
             subprocess.run(["python", "manage.py", "startapp", app_name], check=True)
