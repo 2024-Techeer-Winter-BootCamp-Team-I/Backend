@@ -15,7 +15,7 @@ from .models import Project, TechStack, ProjectTech
 from Tech_Stack.tasks import merge_design_with_project
 from document.models import Document
 from django.contrib.auth import get_user_model
-from .utils import find_matching_template  # utils 모듈에서 임포트
+from .utils import find_matching_template  
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
