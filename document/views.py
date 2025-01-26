@@ -594,16 +594,16 @@ def stream_document(request, document_id):
 
             for chunk in call_deepseek_api_stream(prompt):
                 lines = chunk.strip().split("\n")
-
                 for line in lines:
                     if line.startswith("data: "):
                         data_str = line[6:].strip()
 
                         if data_str == "[DONE]":
+                            # 최종 누적 결과를 DB에 저장
                             document.result = sum_result
                             document.save()
-                            yield "data: [DONE]\n\n"  # 클라이언트로 DONE 이벤트 전송
-
+                            # 클라이언트 측에 DONE 알림
+                            yield "data: [DONE]\n\n"
                             return
 
                         try:
@@ -614,11 +614,11 @@ def stream_document(request, document_id):
 
                             if content:
                                 sum_result += content
-                                yield f"data: {json.dumps({'content': content}, ensure_ascii=False)}\n\n"
+                                # JSON이 아닌 순수 텍스트 형태로 전송
+                                yield f"data: {content}\n\n"
 
                         except json.JSONDecodeError:
-                            # 파싱 오류 시 에러를 SSE로 보낼 수도 있음
-                            yield f"data: {{'error':'JSONDecodeError'}}\n\n"
+                            yield "data: JSONDecodeError\n\n"
             else:
                 pass
 
