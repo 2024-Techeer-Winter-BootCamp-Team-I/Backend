@@ -71,6 +71,7 @@ def generate_models_from_erd(erd_code):
     """
     ERD 코드를 기반으로 Django 모델 코드를 생성합니다.
     """
+
     prompt = f"""
         다음 Mermaid 형식의 ERD 코드를 Django 모델 코드로 변환해주세요. 아래 지시사항을 정확히 따라주세요:
 
@@ -115,6 +116,23 @@ def clean_api_code(api_code):
     elif api_code.startswith("```") and api_code.endswith("```"):
         api_code = api_code[3:-3].strip()  # ``` 제거
     return api_code
+  
+def generate_swagger_from_api(api_code):
+    """
+    API 코드를 기반으로 Swagger 문서를 생성합니다.
+    """
+    return f"""
+    {{
+        "swagger": "2.0",
+        "info": {{
+            "title": "API Documentation",
+            "version": "1.0.0"
+        }},
+        "paths": {{
+            {api_code}
+        }}
+    }}
+    """
 
 def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
     """
@@ -145,6 +163,7 @@ def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
             # AI에게 코드 생성 요청
             views_code = call_deepseek_api(prompt)
             print(views_code)
+
             return views_code.strip()
         except Exception as e:
             raise ValueError(f"Error generating API endpoints: {e}")
@@ -349,7 +368,7 @@ def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, fro
             shutil.copytree(backend_template_dir, backend_dir)
 
             # Django 앱 생성 및 설정 (기존 코드)
-            app_name = "generated_app"
+            app_name = "app"
             app_dir = os.path.join(backend_dir, app_name)
             os.chdir(backend_dir)
             subprocess.run(["python", "manage.py", "startapp", app_name], check=True)

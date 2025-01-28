@@ -639,6 +639,95 @@ def stream_document(request, document_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 #----------------------------------------------------------
+@swagger_auto_schema(
+    method='put',
+    operation_summary="수정사항 문서결과 스트리밍 API",
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'modifications': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description='수정사항에 대한 상세 내용'
+            ),
+        },
+        required=['modifications'],
+    ),
+    responses={
+        200: openapi.Response(description="문서 수정 성공"),
+        400: "Bad Request",
+        404: "Document Not Found",
+        500: "Internal Server Error",
+    },
+)
+@api_view(["PUT"])
+@permission_classes([IsAuthenticated])
+def update_stream_document(request, document_id):
 
+    user = request.user
+    modifications = request.data.get('modifications', '')
+
+    try:
+        document = Document.objects.get(id=document_id, user_id=user.id)
+        prompt = f"""
+
+                        기존문서: {document.result}
+                        추가문서: {modifications}
+                        기존 내용을 바탕으로 추가문서를 적용시켜 체계적인 기능명세서를 작성해주세요. 다음 지시사항을 정확히 따라주세요:
+                        
+                        **추가 요구사항**
+                        - 마지막 요약은 빼주세요.
+                        - 절대적으로 기존문서의 양식을 지켜야합니다. 최대한 기존문서를 수정하지말고, 추가문서에 대한 정보에만 추가하거나 수정해주세요.
+                        - 문장을 추가할 땐, 기존의 문서를 토대로 작성해주세요.
+                        """
+
+        def sse():
+            sum_result = ""
+
+            for chunk in call_deepseek_api_stream(prompt):
+                lines = chunk.strip().split("\n")
+                for line in lines:
+                    if line.startswith("data: "):
+                        data_str = line[6:].strip()
+
+                        if data_str == "[DONE]":
+                            # 최종 누적 결과를 DB에 저장
+                            document.result = sum_result
+                            document.save()
+                            # 클라이언트 측에 DONE 알림
+                            yield "data: [DONE]\n\n"
+                            return
+
+                        try:
+                            data_json = json.loads(data_str)
+                            content = data_json.get("choices", [{}])[0] \
+                                .get("delta", {}) \
+                                .get("content", "")
+
+                            if content:
+                                sum_result += content
+                                # JSON이 아닌 순수 텍스트 형태로 전송
+                                yield f"data: {content}\n\n"
+
+                        except json.JSONDecodeError:
+                            yield "data: JSONDecodeError\n\n"
+            else:
+                pass
+
+        response = StreamingHttpResponse(sse(), content_type="text/event-stream; charset=utf-8")
+        return response
+
+
+    except Document.DoesNotExist:
+        return JsonResponse({
+            "status": "error",
+            "message": "Document not found or you don't have permission to access it."
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": "error",
+            "message": str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+#----------------------------------------------------------
 # SSL 인증서 파일 경로 설정
 os.environ["SSL_CERT_FILE"] = certifi.where()

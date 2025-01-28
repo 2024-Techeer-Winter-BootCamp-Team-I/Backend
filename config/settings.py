@@ -68,7 +68,6 @@ CORS_ALLOW_HEADERS = [
     'accept',
     'origin',
     'user-agent',
-    'access-control-allow-origin',
 ]
 
 CORS_ALLOW_METHODS = [ 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS',]
