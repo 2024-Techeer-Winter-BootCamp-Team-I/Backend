@@ -13,6 +13,38 @@ from django.views import View
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from document.models import Document
+from openai import OpenAI
+import requests
+import redis
+
+# Redis 클라이언트 생성
+redis_client = redis.StrictRedis(host="redis", port=6379, decode_responses=True)
+
+# DeepSeek API 설정
+api_key = os.environ.get("DEEPSEEK_API_KEY")
+api_url = os.environ.get("DEEPSEEK_API_URL")
+
+def call_deepseek_api(prompt):
+    payload = {
+        "model": "deepseek-chat",
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False
+    }
+
+    header = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + api_key
+    }
+
+    response = requests.post(api_url, json=payload, headers=header)
+
+    if response.status_code == 200:
+        result = response.json()
+        return result["choices"][0]["message"]["content"]
+    else:
+        error_msg = response.json().get("error", "Unknown error occurred.")
+        raise Exception(f"DeepSeek API 호출 실패: {error_msg}")
 
 @shared_task
 def copy_template_files(project_dir, frontend_template_dir, backend_template_dir):
@@ -33,60 +65,46 @@ def copy_template_files(project_dir, frontend_template_dir, backend_template_dir
         return True
     except Exception as e:
         raise Exception(f"Error copying template files: {e}")
-
+    
+@shared_task
 def generate_models_from_erd(erd_code):
     """
     ERD 코드를 기반으로 Django 모델 코드를 생성합니다.
     """
-    models_code = """from django.db import models
 
-"""
+    prompt = f"""
+        다음 Mermaid 형식의 ERD 코드를 Django 모델 코드로 변환해주세요. 아래 지시사항을 정확히 따라주세요:
 
-    entities = {}
-    entity_pattern = re.compile(r"(\w+)\s*\{([^}]+)\}")
-    field_pattern = re.compile(r"(\w+)\s+(\w+)")
+        {erd_code}
 
-    for match in entity_pattern.finditer(erd_code):
-        entity_name = match.group(1).strip()
-        fields_block = match.group(2).strip()
-        fields = []
+        1. **모델 정의**
+        - 각 엔티티는 Django의 `models.Model`을 상속받는 클래스로 정의하세요.
+        - 필드 타입은 ERD의 데이터 타입에 맞게 적절히 선택하세요. (예: `IntegerField`, `CharField`, `ForeignKey` 등)
+        - `primary_key=True` 옵션을 사용하여 기본 키를 명시하세요.
+        - 외래 키는 `ForeignKey`를 사용하여 정의하세요. `on_delete` 옵션은 `models.CASCADE`로 설정하세요.
 
-        for line in fields_block.splitlines():
-            line = line.strip()
-            if line:
-                field_match = field_pattern.match(line)
-                if field_match:
-                    field_name = field_match.group(1).strip()
-                    field_type = field_match.group(2).strip()
-                    fields.append((field_name, field_type))
+        2. **관계 정의**
+        - 1:1 관계는 `OneToOneField`를 사용하세요.
+        - 1:N 관계는 `ForeignKey`를 사용하세요.
+        - M:N 관계는 `ManyToManyField`를 사용하세요.
 
-        entities[entity_name] = fields
+        3. **메타 클래스**
+        - 각 모델 클래스에 `Meta` 클래스를 추가하고, `verbose_name` 및 `verbose_name_plural`을 정의하세요.
 
-    for entity, fields in entities.items():
-        models_code += f"""
-class {entity}(models.Model):
-"""
-        # id 필드를 CharField로 정의 (Primary Key)
-        # id 필드는 한 번만 정의되도록 수정
-        models_code += f"    id = models.CharField(max_length=255, primary_key=True)\n"
-        
-        # 나머지 필드 추가
-        for field_name, field_type in fields:
-            # id 필드는 이미 정의되었으므로 중복으로 추가하지 않음
-            if field_name.lower() != "id":  # id 필드는 이미 정의되었으므로 건너뜀
-                if field_type == "string":
-                    models_code += f"    {field_name} = models.CharField(max_length=255)\n"
-                elif field_type == "timestamp" or field_type == "datetime":
-                    models_code += f"    {field_name} = models.DateTimeField(auto_now_add=True)\n"
-                elif field_type == "bool":
-                    models_code += f"    {field_name} = models.BooleanField(default=False)\n"
-                elif field_type == "int":
-                    models_code += f"    {field_name} = models.IntegerField()\n"
-                else:
-                    models_code += f"    {field_name} = models.CharField(max_length=255)\n"
-        models_code += "\n"
+        4. **출력 형식**
+        - 생성된 Django 모델 코드만 출력하세요. 다른 설명은 생략하세요.
+        - 설명과 주석 없이 Django에서 바로 사용할 수 있도록 '코드만' 출력하세요.
+        - 순수한 Python 코드만 생성하세요.
+        - `'''`(삼중 따옴표)를 사용하지 마세요.
+        - 코드 블록이나 문자열 리터럴로 감싸지 마세요.
+    """
 
-    return models_code
+    try:
+        # DeepSeek API를 호출하여 Django 모델 코드 생성
+        models_code = call_deepseek_api(prompt)
+        return models_code
+    except Exception as e:
+        raise Exception(f"Error generating Django models from ERD: {e}")
 
 def clean_api_code(api_code):
     """
@@ -116,103 +134,138 @@ def generate_swagger_from_api(api_code):
     }}
     """
 
-def generate_api_endpoints(api_code, backend_tech_stack):
+def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
     """
-    API 코드를 기반으로 백엔드 기술 스택에 맞는 엔드포인트 코드를 생성합니다.
+    ERD 코드와 API 코드를 기반으로 백엔드 기술 스택에 맞는 엔드포인트 코드를 생성합니다.
     """
     if "Django" in backend_tech_stack:
         try:
-            # api_code에서 Markdown 코드 블록 제거
-            api_code = clean_api_code(api_code)
-            
-            # api_code가 비어 있는지 확인
-            if not api_code:
-                raise ValueError("api_code가 비어 있습니다.")
-            
-            # api_code를 JSON 형식으로 파싱
-            api_spec = json.loads(api_code)
-            
-            # paths에서 엔드포인트 정보 추출
-            paths = api_spec.get("paths", {})
-            
-            # 동적으로 뷰 코드 생성
-            views_code = """
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-import json
+            # 프롬프트 생성
+            prompt = f"""
+                다음 지시사항에 따라 Django views.py 파일을 생성해주세요:
 
-"""
-            for endpoint, spec in paths.items():
-                method = list(spec.keys())[0]  # 예: "post", "get"
-                method_spec = spec[method]
-                summary = method_spec.get("summary", "No summary provided.")
-                description = method_spec.get("description", "No description provided.")
-                parameters = method_spec.get("parameters", [])
-                responses = method_spec.get("responses", {})
+                ERD 코드{erd_code}와 API 코드{api_code}를 참고하여 Django views.py 파일을 생성해주세요
 
-                # 뷰 클래스 이름 생성 (Python 네이밍 규칙에 맞게 수정)
-                view_name = endpoint.replace("/", "_").replace("-", "_").strip("_").capitalize()
-                # 중괄호 {} 제거 및 CamelCase로 변환
-                view_name = re.sub(r'\{(\w+)\}', r'\1', view_name)  # {postid} -> postid
-                view_name = ''.join([word.capitalize() for word in view_name.split('_')])  # postid -> Postid
-                
-                # 대문자와 대문자 사이에 언더스코어 추가
-                view_name = re.sub(r'([A-Z])', r'_\1', view_name).strip('_')  # UsersUserid -> Users_Userid
-                
-                # 뷰 클래스 생성 (APIView 기반)
-                views_code += f"""
-class {view_name}(APIView):
-    def {method}(self, request, *args, **kwargs):
-        try:
-            data = request.data  
-            
-            return Response({responses.get("200", {}).get("schema", {})}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({{"error": str(e)}}, status=status.HTTP_400_BAD_REQUEST)
-"""
+                출력 형식:
+                - 순수한 Python 코드만 생성하세요.
+                - `'''`(삼중 따옴표)를 사용하지 마세요.
+                - 코드 블록이나 문자열 리터럴로 감싸지 마세요.
+                - 설명과 주석 없이 Django에서 바로 사용할 수 있도록 코드만 출력하세요.
+
+                모델 및 뷰 정의:
+                - serializer를 사용하지 마세요.
+                - ERD 코드를 기반으로 Django 모델을 생성하세요.
+                - API 스펙을 기반으로 Django 뷰를 생성하세요.
+                - 뷰는 Django REST Framework의 `APIView`를 사용하세요.
+                - 각 엔드포인트에 대해 적절한 HTTP 메서드를 구현하세요.
+            """
+
+            # AI에게 코드 생성 요청
+            views_code = call_deepseek_api(prompt)
+            print(views_code)
+
             return views_code.strip()
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON format in api_code: {e}")
         except Exception as e:
             raise ValueError(f"Error generating API endpoints: {e}")
     else:
         raise ValueError("지원되지 않는 백엔드 기술 스택입니다.")
 
-def generate_urls_from_views(app_name):
+def generate_swagger_from_api(api_code):
+    """
+    API 코드를 기반으로 Swagger 문서를 생성합니다.
+    """
+    return f"""
+    {{
+        "swagger": "2.0",
+        "info": {{
+            "title": "API Documentation",
+            "version": "1.0.0"
+        }},
+        "paths": {{
+            {api_code}
+        }}
+    }}
+    """
+
+@shared_task
+def generate_urls_from_views(api_code, app_name):
     """
     views.py에 정의된 API 엔드포인트를 기반으로 urls.py를 동적으로 생성합니다.
     """
-    urls_code = f"""
-from django.urls import path
-from . import views
+    # views_path = f"{app_name}/views.py"
+    
+    # # 파일 존재 여부 확인
+    # if not os.path.exists(views_path):
+    #     raise FileNotFoundError(f"'{views_path}' 파일이 존재하지 않습니다.")
 
-urlpatterns = [
-"""
+    # # views.py 내용 읽기
+    # try:
+    #     with open(views_path, "r") as f:
+    #         views_content = f.read()
+    # except Exception as e:
+    #     raise Exception(f"'{views_path}' 파일을 읽는 중 오류 발생: {e}")
+
+    # print(views_content)
     
-    # views.py에 정의된 뷰 클래스 이름을 기반으로 URL 패턴 생성
-    views_code = """
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-import json
-"""
-    
-    # views.py 파일을 읽어서 뷰 클래스 이름 추출
-    with open(f"{app_name}/views.py", "r") as f:
-        views_content = f.read()
-    
-    # 뷰 클래스 이름 추출 (예: class GenerateImageview(APIView):)
-    view_classes = re.findall(r"class\s+(\w+)\(APIView\):", views_content)
-    
-    for view_class in view_classes:
-        # 뷰 클래스 이름에서 "View"를 제거하고 소문자로 변환하여 URL 패턴 생성
-        endpoint = view_class.replace("View", "").lower()
-        urls_code += f"    path('{endpoint}', views.{view_class}.as_view(), name='{endpoint}'),\n"
-    
-    urls_code += "]"
-    
-    return urls_code.strip()
+    # 프롬프트 구성
+    prompt = f"""
+        {api_code}코드를 기반으로 urls.py 코드를 생성하세요. 아래 지시사항을 정확히 따라주세요:
+
+        1. **URL 패턴 정의**
+        - 각 함수형 뷰 또는 클래스형 뷰를 기반으로 URL 패턴을 생성하세요.
+        - 함수형 뷰는 `path()`를 사용하고, 클래스형 뷰는 `as_view()`를 호출하여 `path()`로 연결하세요.
+        - `urlpatterns` 리스트에 모든 URL 패턴을 정의하세요.
+
+        2. **앱 이름 지정**
+        - `app_name`을 `api`로 설정하세요.
+        
+        3. **출력 형식**
+        - 생성된 urls.py 코드만 출력하세요. 다른 설명은 생략하세요.
+        - Django에서 바로 사용할 수 있도록 코드만 출력하세요.
+        - 삼중 따옴표(`'''`)를 사용하지 마세요.
+        - 코드 블록이나 문자열 리터럴로 감싸지 마세요.
+
+        아래는 출력 예시입니다.
+        예를 들어, views.py가 다음과 같다면:
+        
+        from django.http import JsonResponse
+
+        def get_items(request):
+            return JsonResponse("예시")
+
+        class ItemDetailView(View):
+            def get(self, request, item_id):
+                return JsonResponse("예시")
+        
+
+        생성되는 urls.py는 다음과 같아야 합니다:
+        
+        from django.urls import path
+        from . import views
+
+        app_name = 'api'
+
+        urlpatterns = [
+            path('items/', views.get_items, name='get_items'),
+            path('items/<int:item_id>/', views.ItemDetailView.as_view(), name='item_detail'),
+        ]
+        위의 예시를 참고해서 출력 형식에 맞게 urls.py코드를 출력해주세요.
+        
+    """
+
+    try:
+        # DeepSeek API를 호출하여 urls.py 코드 생성
+        urls_code = call_deepseek_api(prompt)
+        print(urls_code)
+
+        # 생성된 코드 검증
+        if "urlpatterns" not in urls_code or "path" not in urls_code:
+            raise ValueError("생성된 urls.py 코드가 유효하지 않습니다.")
+        
+        return urls_code
+    except Exception as e:
+        raise Exception(f"Error generating Django urls from views: {e}")
+
 
 def generate_docker_compose(project_dir, frontend_tech_stack, backend_tech_stack):
     """
@@ -326,12 +379,12 @@ def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, fro
             with open(models_path, "w") as f:
                 f.write(models_code)
 
-            api_endpoints_code = generate_api_endpoints(api_code, backend_tech_stack)
+            api_endpoints_code = generate_api_endpoints(erd_code, api_code, backend_tech_stack)
             api_endpoints_path = os.path.join(app_dir, "views.py")
             with open(api_endpoints_path, "w") as f:
                 f.write(api_endpoints_code)
 
-            urls_code = generate_urls_from_views(app_name)
+            urls_code = generate_urls_from_views(app_name, api_code)
             urls_path = os.path.join(app_dir, "urls.py")
             with open(urls_path, "w") as f:
                 f.write(urls_code)
