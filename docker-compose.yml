@@ -23,6 +23,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}  # OpenAI API 키 추가
       RUNNING_IN_DOCKER: 'true'
       DATABASE_HOST: ${DATABASE_HOST}
       DATABASE_NAME: ${DATABASE_NAME}
@@ -74,6 +75,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./temp:/DevSketch-Backend/temp  # 호스트의 ./temp 디렉토리를 컨테이너의 /DevSketch-Back
     environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}  # OpenAI API 키 추가
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
       DATABASE_HOST: ${DATABASE_HOST}
