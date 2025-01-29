@@ -615,7 +615,8 @@ def stream_document(request, document_id):
                             if content:
                                 sum_result += content
                                 # JSON이 아닌 순수 텍스트 형태로 전송
-                                yield f"data: {content}\n\n"
+                                for char in content:  # ✅ 한 글자씩 전송
+                                     yield char 
 
                         except json.JSONDecodeError:
                             yield "data: JSONDecodeError\n\n"
@@ -705,8 +706,9 @@ def update_stream_document(request, document_id):
 
                             if content:
                                 sum_result += content
-                                # JSON이 아닌 순수 텍스트 형태로 전송
-                                yield f"data: {content}\n\n"
+                                # ✅ JSON 없이 순수 텍스트만 전송 (한 글자씩)
+                                for char in content:
+                                    yield char  
 
                         except json.JSONDecodeError:
                             yield "data: JSONDecodeError\n\n"
@@ -715,7 +717,6 @@ def update_stream_document(request, document_id):
 
         response = StreamingHttpResponse(sse(), content_type="text/event-stream; charset=utf-8")
         return response
-
 
     except Document.DoesNotExist:
         return JsonResponse({
