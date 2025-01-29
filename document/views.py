@@ -451,7 +451,7 @@ def call_openai_api(prompt):
     try:
         # ChatGPT 모델 호출
         response = openai.Completion.create(
-            model="gpt-4", 
+            model="gpt-4o", 
             prompt=prompt,
             max_tokens=1000,  # 응답의 최대 토큰 수
         )
@@ -646,7 +646,7 @@ def stream_document(request, document_id):
             try:
                 # OpenAI 스트리밍 API 호출
                 response = openai.chat.completions.create(
-                    model="gpt-4",  # 또는 "gpt-3.5-turbo"
+                    model="gpt-4o",  # 또는 "gpt-3.5-turbo"
                     messages=[
                         {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
                         {"role": "user", "content": prompt}
@@ -856,7 +856,7 @@ def update_stream_document(request, document_id):
             try:
                 # OpenAI API 호출
                 response = openai.completions.create(
-                    model="gpt-4",  # 또는 원하는 모델로 변경
+                    model="gpt-4o",  # 또는 원하는 모델로 변경
                     messages=[
                         {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
                         {"role": "user", "content": prompt}

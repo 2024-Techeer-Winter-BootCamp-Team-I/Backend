@@ -35,7 +35,7 @@ def call_openai_api(prompt):
     try:
         # ChatGPT 모델 호출
         response = openai.chat.completions.create(
-            model="gpt-4", 
+            model="gpt-4o", 
             messages=[{"role": "user", "content": prompt}],
             max_tokens=2000,  # 응답의 최대 토큰 수
         )
@@ -120,8 +120,12 @@ def generate_models_from_erd(erd_code):
         - 생성된 Django 모델 코드만 출력하세요. 다른 설명은 생략하세요.
         - 설명과 주석 없이 Django에서 바로 사용할 수 있도록 '코드만' 출력하세요.
         - 순수한 Python 코드만 생성하세요.
-        - `'''`(삼중 따옴표)를 사용하지 마세요.
+        - '''(삼중 따옴표)를 사용하지 마세요.
         - 코드 블록이나 문자열 리터럴로 감싸지 마세요.
+        
+        **주의사항**:
+        - 설명과 주석 없이 Django에서 바로 사용할 수 있도록 '코드만' 출력하세요.
+        - 코드의 맨 앞과 맨 뒤에 설명과 '''(삼중 따옴표)를 붙이지 마세요.
     """
 
     try:
@@ -213,7 +217,7 @@ def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
 
                 출력 형식:
                 - 순수한 Python 코드만 생성하세요.
-                - `'''`(삼중 따옴표)를 사용하지 마세요.
+                - '''(삼중 따옴표)를 사용하지 마세요.
                 - 코드 블록이나 문자열 리터럴로 감싸지 마세요.
                 - 설명과 주석 없이 Django에서 바로 사용할 수 있도록 코드만 출력하세요.
 
@@ -223,6 +227,10 @@ def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
                 - API 스펙을 기반으로 Django 뷰를 생성하세요.
                 - 뷰는 Django REST Framework의 `APIView`를 사용하세요.
                 - 각 엔드포인트에 대해 적절한 HTTP 메서드를 구현하세요.
+                
+                 **주의사항**:
+                - 설명과 주석 없이 Django에서 바로 사용할 수 있도록 '코드만' 출력하세요.
+                - 코드의 맨 앞과 맨 뒤에 설명과 '''(삼중 따옴표)를 붙이지 마세요.
             """
             
             try:
@@ -311,32 +319,6 @@ def generate_urls_from_views(api_code, app_name):
         - Django에서 바로 사용할 수 있도록 코드만 출력하세요.
         - 삼중 따옴표(`'''`)를 사용하지 마세요.
         - 코드 블록이나 문자열 리터럴로 감싸지 마세요.
-
-        아래는 출력 예시입니다.
-        예를 들어, views.py가 다음과 같다면:
-        
-        from django.http import JsonResponse
-
-        def get_items(request):
-            return JsonResponse("예시")
-
-        class ItemDetailView(View):
-            def get(self, request, item_id):
-                return JsonResponse("예시")
-        
-
-        생성되는 urls.py는 다음과 같아야 합니다:
-        
-        from django.urls import path
-        from . import views
-
-        app_name = 'api'
-
-        urlpatterns = [
-            path('items/', views.get_items, name='get_items'),
-            path('items/<int:item_id>/', views.ItemDetailView.as_view(), name='item_detail'),
-        ]
-        위의 예시를 참고해서 출력 형식에 맞게 urls.py코드를 출력해주세요.
         
     """
 
