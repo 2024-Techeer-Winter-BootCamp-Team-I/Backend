@@ -26,8 +26,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-openai.api_key = os.environ.get("DEEPSEEK_API_KEY")
-openai.api_base = os.environ.get("DEEPSEEK_API_URL")
+openai_api_key = os.environ.get("OPENAI_API_KEY")
+openai.api_key = openai_api_key
+
+# openai.api_key = os.environ.get("DEEPSEEK_API_KEY")
+# openai.api_base = os.environ.get("DEEPSEEK_API_URL")
 
 @swagger_auto_schema(
     methods=['POST'],
@@ -444,72 +447,118 @@ def setup_project(request, document_id):
 
 #----------------------------------------------------------
 
-def call_deepseek_api(prompt):
-    api_url = "https://api.deepseek.com/v1/chat/completions"
-    api_key = settings.DEEPSEEK_API_KEY
+def call_openai_api(prompt):
+    try:
+        # ChatGPT 모델 호출
+        response = openai.Completion.create(
+            model="gpt-4o", 
+            prompt=prompt,
+            max_tokens=1000,  # 응답의 최대 토큰 수
+        )
 
-    payload = {
-        "model": "deepseek-chat",
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "stream": False
-    }
+        # OpenAI의 응답 내용 반환
+        return response["choices"][0]["text"]
 
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
+    except openai.error.OpenAIError as e:
+        raise Exception(f"OpenAI API 호출 실패: {str(e)}")
 
-    response = requests.post(api_url, json=payload, headers=headers)
+# 테스트
+if __name__ == "__main__":
+    prompt = "안녕하세요, ChatGPT API를 호출하는 방법을 알려주세요."
+    result = call_openai_api(prompt)
+    print(result)
 
-    if response.status_code == 200:
-        review_result = response.json()
-        return review_result['choices'][0]['message']['content']
-    else:
-        error_msg = response.json().get("error", "Unknown error occurred.")
-        raise Exception(f"DeepSeek API failed: {error_msg}")
+# def call_deepseek_api(prompt):
+#     api_url = "https://api.deepseek.com/v1/chat/completions"
+#     api_key = settings.DEEPSEEK_API_KEY
+
+#     payload = {
+#         "model": "deepseek-chat",
+#         "messages": [
+#             {"role": "user", "content": prompt}
+#         ],
+#         "stream": False
+#     }
+
+#     headers = {
+#         "Content-Type": "application/json",
+#         "Authorization": f"Bearer {api_key}"
+#     }
+
+#     response = requests.post(api_url, json=payload, headers=headers)
+
+#     if response.status_code == 200:
+#         review_result = response.json()
+#         return review_result['choices'][0]['message']['content']
+#     else:
+#         error_msg = response.json().get("error", "Unknown error occurred.")
+#         raise Exception(f"DeepSeek API failed: {error_msg}")
 
 
 #----------------------------------------------------------
 
-def call_deepseek_api_stream(prompt):
-    api_url = "https://api.deepseek.com/v1/chat/completions"
-    api_key = settings.DEEPSEEK_API_KEY
-
-    payload = {
-        "model": "deepseek-chat",
-        "messages": [
-            {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
-            {"role": "user", "content": prompt}
-        ],
-        "stream": True
-    }
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-
+def call_openai_api_stream(prompt):
     try:
-        with requests.post(api_url, json=payload, headers=headers, stream=True) as response:
-            if response.status_code != 200:
-                try:
-                    error_msg = response.json().get("error", "Unknown error occurred.")
-                except ValueError:
-                    error_msg = "Unknown error occurred."
-                logger.error(f"DeepSeek API failed with status {response.status_code}: {error_msg}")
-                raise Exception(f"DeepSeek API failed: {error_msg}")
+        # OpenAI의 스트리밍을 사용한 ChatGPT 모델 호출
+        response = openai.completions.create(
+            model="4",
+            messages=[
+                {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
+                {"role": "user", "content": prompt}
+            ],
+            stream=True  # 스트리밍 모드 활성화
+        )
 
-            for chunk in response.iter_content(chunk_size=None):
-                if chunk:
-                    decoded_chunk = chunk.decode("utf-8")
-                    logger.debug(f"Received chunk: {decoded_chunk}")
-                    yield decoded_chunk
-    except requests.RequestException as e:
-        error_message = f"RequestException: {str(e)}"
+        # 스트리밍 응답 처리
+        for chunk in response:
+            if 'choices' in chunk:
+                text = chunk['choices'][0].get('message', {}).get('content', '')
+                if text:
+                    logger.debug(f"Received chunk: {text}")
+                    yield text
+
+    except openai.error.OpenAIError as e:
+        error_message = f"OpenAI API 호출 실패: {str(e)}"
         logger.error(error_message)
         raise Exception(error_message)
+
+# def call_deepseek_api_stream(prompt):
+#     api_url = "https://api.deepseek.com/v1/chat/completions"
+#     api_key = settings.DEEPSEEK_API_KEY
+
+#     payload = {
+#         "model": "deepseek-chat",
+#         "messages": [
+#             {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
+#             {"role": "user", "content": prompt}
+#         ],
+#         "stream": True
+#     }
+
+#     headers = {
+#         "Content-Type": "application/json",
+#         "Authorization": f"Bearer {api_key}"
+#     }
+
+#     try:
+#         with requests.post(api_url, json=payload, headers=headers, stream=True) as response:
+#             if response.status_code != 200:
+#                 try:
+#                     error_msg = response.json().get("error", "Unknown error occurred.")
+#                 except ValueError:
+#                     error_msg = "Unknown error occurred."
+#                 logger.error(f"DeepSeek API failed with status {response.status_code}: {error_msg}")
+#                 raise Exception(f"DeepSeek API failed: {error_msg}")
+
+#             for chunk in response.iter_content(chunk_size=None):
+#                 if chunk:
+#                     decoded_chunk = chunk.decode("utf-8")
+#                     logger.debug(f"Received chunk: {decoded_chunk}")
+#                     yield decoded_chunk
+#     except requests.RequestException as e:
+#         error_message = f"RequestException: {str(e)}"
+#         logger.error(error_message)
+#         raise Exception(error_message)
 
 #----------------------------------------------------------
 
@@ -530,7 +579,8 @@ def stream_document(request, document_id):
     user = request.user
 
     try:
-        document = Document.objects.get(id = document_id, user_id = user.id)
+        # 문서 정보 가져오기
+        document = Document.objects.get(id=document_id, user_id=user.id)
         prompt = f"""
         
                         Title: {document.title}
@@ -589,28 +639,27 @@ def stream_document(request, document_id):
                             위의 출력 예시는 쇼핑몰 예시입니다. 사용자가 입력한 정보를 바탕으로 예시를 참고하여 출력해주세요.
                         """
 
+        # SSE 스트리밍을 위한 함수
         def sse():
             sum_result = ""
 
-            for chunk in call_deepseek_api_stream(prompt):
-                lines = chunk.strip().split("\n")
-                for line in lines:
-                    if line.startswith("data: "):
-                        data_str = line[6:].strip()
+            try:
+                # OpenAI 스트리밍 API 호출
+                response = openai.chat.completions.create(
+                    model="gpt-4o",  # 또는 "gpt-3.5-turbo"
+                    messages=[
+                        {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    stream=True  # 스트리밍 모드
+                )
 
-                        if data_str == "[DONE]":
-                            # 최종 누적 결과를 DB에 저장
-                            document.result = sum_result
-                            document.save()
-                            # 클라이언트 측에 DONE 알림
-                            yield "data: [DONE]\n\n"
-                            return
-
-                        try:
-                            data_json = json.loads(data_str)
-                            content = data_json.get("choices", [{}])[0] \
-                                .get("delta", {}) \
-                                .get("content", "")
+                # 스트리밍 응답 처리
+                for chunk in response:
+                    if hasattr(chunk.choices[0], "delta"):
+                        content = chunk.choices[0].delta.content or ""  # None 방지
+                    else:
+                        content = ""
 
                             if content:
                                 sum_result += content
@@ -618,14 +667,22 @@ def stream_document(request, document_id):
                                 for char in content:  # ✅ 한 글자씩 전송
                                      yield char 
 
-                        except json.JSONDecodeError:
-                            yield "data: JSONDecodeError\n\n"
-            else:
-                pass
+                # 문서 저장 처리
+                if sum_result:
+                    document.result = sum_result
+                    document.save()
 
+                # 스트리밍 종료 후 클라이언트에 알림
+                yield "data: [DONE]\n\n"
+
+            except openai.OpenAIError as e:
+                yield f"data: OpenAI API 호출 실패: {str(e)}\n\n"
+            except Exception as e:
+                yield f"data: {str(e)}\n\n"
+
+        # SSE로 응답 반환
         response = StreamingHttpResponse(sse(), content_type="text/event-stream; charset=utf-8")
         return response
-
 
     except Document.DoesNotExist:
         return JsonResponse({
@@ -638,6 +695,119 @@ def stream_document(request, document_id):
             "status": "error",
             "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# def stream_document(request, document_id):
+
+#     user = request.user
+
+#     try:
+#         document = Document.objects.get(id = document_id, user_id = user.id)
+#         prompt = f"""
+        
+#                         Title: {document.title}
+#                         Content: {document.content}
+#                         Requirements: {document.requirements}
+
+#                         위 내용을 바탕으로 체계적인 기능명세서를 작성해주세요. 다음 지시사항을 정확히 따라주세요:
+
+#                         1. **문서 구조**
+#                             - 문서는 다음과 같은 섹션으로 구성되어야 합니다:
+#                             1. **시스템 목적**: 프로젝트의 목적과 주요 기능을 간략히 설명하세요.
+#                             2. **기능 요구사항**: 사용자 요구사항을 기반으로 상세한 기능 목록을 작성하세요. 각 기능은 사용자 스토리 형식(예: "사용자는 [X]를 할 수 있어야 한다")으로 작성하세요.
+
+#                         2. **상세 설명**
+#                             - 각 섹션은 명확하고 간결하게 작성되어야 합니다.
+
+#                         3. **모듈화**
+#                             - 문서를 모듈화하여 각 섹션이 독립적으로 이해될 수 있도록 하세요.
+#                             - 각 모듈은 간단한 설명과 함께 명확하게 구분되어야 합니다.
+
+#                         4. **출력 형식**
+#                             - 최종 문서는 바로 제출할 수 있는 형태로 작성되어야 합니다.
+#                             - 출력은 마크다운 형식이 아닌 빠르게 출력되도록 문서로만 해주세요.(#,** 등 제외)
+#                             - 불필요한 설명이나 서론은 생략하고, 실제 문서 내용만 출력하세요.
+
+#                         5. **추가 요구사항**
+#                             - 현업에서 바로 사용할 수 있도록 전문적이고 실용적인 언어를 사용하세요.
+#                             - 가능한 한 구체적이고 명확하게 작성하세요.
+#                             - 마지막 요약은 빼주세요.
+
+#                             **출력 예시**
+#                             시스템 목적:
+#                             - 비즈니스 목적: 사용자가 상품을 쉽게 조회하고 주문할 수 있도록 하는 것입니다.
+#                             - 기술적 목적: 안정적이고 확장 가능한 온라인 쇼핑몰 시스템을 구축하는 것입니다.
+
+#                             기능 요구사항:
+#                             1. 사용자는 상품을 조회할 수 있어야 한다. (우선순위: 높음)
+#                             2. 사용자는 상품을 주문할 수 있어야 한다. (우선순위: 높음)
+#                             3. 사용자는 주문 내역을 조회할 수 있어야 한다. (우선순위: 중간)
+
+#                             시나리오:
+#                             1. 사용자가 로그인 페이지에 접속합니다.
+#                             2. 이메일과 비밀번호를 입력합니다.
+#                             3. 로그인 버튼을 클릭합니다.
+#                             4. 시스템은 사용자 정보를 검증하고 로그인을 승인합니다.
+
+#                             비기능 요구사항:
+#                             - 시스템은 초당 100개의 요청을 처리할 수 있어야 합니다.
+#                             - 사용자 데이터는 암호화되어 저장되어야 합니다.
+
+#                             모듈화:
+#                             - 로그인 모듈: 입력 - 이메일, 비밀번호 / 출력 - 사용자 정보, 토큰
+#                             - 상품 조회 모듈: 입력 - 검색어 / 출력 - 상품 목록
+#                             - 주문 모듈: 입력 - 상품 ID, 수량 / 출력 - 주문 번호, 결제 정보
+
+#                             위의 출력 예시는 쇼핑몰 예시입니다. 사용자가 입력한 정보를 바탕으로 예시를 참고하여 출력해주세요.
+#                         """
+
+#         def sse():
+#             sum_result = ""
+
+#             for chunk in call_deepseek_api_stream(prompt):
+#                 lines = chunk.strip().split("\n")
+#                 for line in lines:
+#                     if line.startswith("data: "):
+#                         data_str = line[6:].strip()
+
+#                         if data_str == "[DONE]":
+#                             # 최종 누적 결과를 DB에 저장
+#                             document.result = sum_result
+#                             document.save()
+#                             # 클라이언트 측에 DONE 알림
+#                             yield "data: [DONE]\n\n"
+#                             return
+
+#                         try:
+#                             data_json = json.loads(data_str)
+#                             content = data_json.get("choices", [{}])[0] \
+#                                 .get("delta", {}) \
+#                                 .get("content", "")
+
+#                             if content:
+#                                 sum_result += content
+#                                 # JSON이 아닌 순수 텍스트 형태로 전송
+#                                 yield f"data: {content}\n\n"
+
+#                         except json.JSONDecodeError:
+#                             yield "data: JSONDecodeError\n\n"
+#             else:
+#                 pass
+
+#         response = StreamingHttpResponse(sse(), content_type="text/event-stream; charset=utf-8")
+#         return response
+
+
+#     except Document.DoesNotExist:
+#         return JsonResponse({
+#             "status": "error",
+#             "message": "Document not found or you don't have permission to access it."
+#         }, status=status.HTTP_404_NOT_FOUND)
+
+#     except Exception as e:
+#         return JsonResponse({
+#             "status": "error",
+#             "message": str(e)
+#         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 #----------------------------------------------------------
 @swagger_auto_schema(
@@ -663,12 +833,13 @@ def stream_document(request, document_id):
 @api_view(["PUT"])
 @permission_classes([IsAuthenticated])
 def update_stream_document(request, document_id):
-
     user = request.user
     modifications = request.data.get('modifications', '')
 
     try:
         document = Document.objects.get(id=document_id, user_id=user.id)
+
+        # OpenAI API에 전달할 프롬프트 생성
         prompt = f"""
 
                         기존문서: {document.result}
@@ -684,36 +855,36 @@ def update_stream_document(request, document_id):
         def sse():
             sum_result = ""
 
-            for chunk in call_deepseek_api_stream(prompt):
-                lines = chunk.strip().split("\n")
-                for line in lines:
-                    if line.startswith("data: "):
-                        data_str = line[6:].strip()
+            try:
+                # OpenAI API 호출
+                response = openai.completions.create(
+                    model="gpt-4o",  # 또는 원하는 모델로 변경
+                    messages=[
+                        {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    stream=True  # 스트리밍 모드 활성화
+                )
 
-                        if data_str == "[DONE]":
-                            # 최종 누적 결과를 DB에 저장
-                            document.result = sum_result
-                            document.save()
-                            # 클라이언트 측에 DONE 알림
-                            yield "data: [DONE]\n\n"
-                            return
+                # 스트리밍 응답 처리
+                for chunk in response:
+                    if chunk.get("choices"):
+                        delta_content = chunk["choices"][0]["delta"].get("content", "")
+                        if delta_content:
+                            sum_result += delta_content
+                            # 누적된 결과를 스트리밍 방식으로 클라이언트에게 전송
+                            yield f"data: {delta_content}\n\n"
 
-                        try:
-                            data_json = json.loads(data_str)
-                            content = data_json.get("choices", [{}])[0] \
-                                .get("delta", {}) \
-                                .get("content", "")
+                # 최종 결과가 끝나면 [DONE]을 반환
+                document.result = sum_result
+                document.save()
+                yield "data: [DONE]\n\n"
 
-                            if content:
-                                sum_result += content
-                                # ✅ JSON 없이 순수 텍스트만 전송 (한 글자씩)
-                                for char in content:
-                                    yield char  
+            except openai.OpenAIError as e:
+                yield f"data: OpenAIError: {str(e)}\n\n"
 
-                        except json.JSONDecodeError:
-                            yield "data: JSONDecodeError\n\n"
-            else:
-                pass
+            except Exception as e:
+                yield f"data: Error: {str(e)}\n\n"
 
         response = StreamingHttpResponse(sse(), content_type="text/event-stream; charset=utf-8")
         return response
@@ -729,6 +900,74 @@ def update_stream_document(request, document_id):
             "status": "error",
             "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-#----------------------------------------------------------
-# SSL 인증서 파일 경로 설정
-os.environ["SSL_CERT_FILE"] = certifi.where()
+
+# def update_stream_document(request, document_id):
+
+#     user = request.user
+#     modifications = request.data.get('modifications', '')
+
+#     try:
+#         document = Document.objects.get(id=document_id, user_id=user.id)
+#         prompt = f"""
+
+#                         기존문서: {document.result}
+#                         추가문서: {modifications}
+#                         기존 내용을 바탕으로 추가문서를 적용시켜 체계적인 기능명세서를 작성해주세요. 다음 지시사항을 정확히 따라주세요:
+                        
+#                         **추가 요구사항**
+#                         - 마지막 요약은 빼주세요.
+#                         - 절대적으로 기존문서의 양식을 지켜야합니다. 최대한 기존문서를 수정하지말고, 추가문서에 대한 정보에만 추가하거나 수정해주세요.
+#                         - 문장을 추가할 땐, 기존의 문서를 토대로 작성해주세요.
+#                         """
+
+#         def sse():
+#             sum_result = ""
+
+#             for chunk in call_deepseek_api_stream(prompt):
+#                 lines = chunk.strip().split("\n")
+#                 for line in lines:
+#                     if line.startswith("data: "):
+#                         data_str = line[6:].strip()
+
+#                         if data_str == "[DONE]":
+#                             # 최종 누적 결과를 DB에 저장
+#                             document.result = sum_result
+#                             document.save()
+#                             # 클라이언트 측에 DONE 알림
+#                             yield "data: [DONE]\n\n"
+#                             return
+
+#                         try:
+#                             data_json = json.loads(data_str)
+#                             content = data_json.get("choices", [{}])[0] \
+#                                 .get("delta", {}) \
+#                                 .get("content", "")
+
+#                             if content:
+#                                 sum_result += content
+#                                 # JSON이 아닌 순수 텍스트 형태로 전송
+#                                 yield f"data: {content}\n\n"
+
+#                         except json.JSONDecodeError:
+#                             yield "data: JSONDecodeError\n\n"
+#             else:
+#                 pass
+
+#         response = StreamingHttpResponse(sse(), content_type="text/event-stream; charset=utf-8")
+#         return response
+
+
+#     except Document.DoesNotExist:
+#         return JsonResponse({
+#             "status": "error",
+#             "message": "Document not found or you don't have permission to access it."
+#         }, status=status.HTTP_404_NOT_FOUND)
+
+#     except Exception as e:
+#         return JsonResponse({
+#             "status": "error",
+#             "message": str(e)
+#         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# #----------------------------------------------------------
+# # SSL 인증서 파일 경로 설정
+# os.environ["SSL_CERT_FILE"] = certifi.where()
