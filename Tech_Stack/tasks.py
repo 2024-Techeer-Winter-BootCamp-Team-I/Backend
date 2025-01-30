@@ -37,7 +37,7 @@ def call_openai_api(prompt):
         response = openai.chat.completions.create(
             model="gpt-4o", 
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=2000,  # 응답의 최대 토큰 수
+            max_tokens=3000,  # 응답의 최대 토큰 수
         )
         print(response)
 
@@ -131,6 +131,8 @@ def generate_models_from_erd(erd_code):
     try:
         # OpenAI API 호출을 함수로 처리
         models_code = call_openai_api(prompt)
+        # '''python 또는 ''' 제거
+        models_code = models_code.strip().replace("```python", "").replace("```", "").strip()
         return models_code
     except Exception as e:
         raise Exception(f"Error generating Django models from ERD: {e}")
@@ -209,6 +211,7 @@ def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
     """
     ERD 코드와 API 코드를 기반으로 백엔드 기술 스택에 맞는 엔드포인트 코드를 생성합니다.
     """
+    global views_py  
     if "Django" in backend_tech_stack:
         try:
             # 프롬프트 생성
@@ -217,28 +220,38 @@ def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
 
                 ERD 코드{erd_code}와 API 코드{api_code}를 참고하여 Django views.py 파일을 생성해주세요
 
+                모델 및 뷰 정의:
+                - API 스펙을 기반으로 Django 뷰를 생성하세요.
+                - 뷰는 Django REST Framework의 'APIView'를 사용하세요. View를 사용하지 마세요.
+                - serializer를 사용하지 마세요.
+                - 각 엔드포인트에 대해 적절한 HTTP 메서드를 구현하세요.
+                - 로그인 로그아웃은 django.contrib.auth의 login()과 logout()을 사용하세요.
+                - 사용자 인증은 is_authenticated를 사용하세요.
+                
+                **Swagger 문서 자동화 적용**
+                - `drf_yasg.utils.swagger_auto_schema`를 사용하여 HTTP 메서드별 요청/응답 스펙을 정의하세요.
+                - `drf_yasg.openapi`를 활용하여 요청 바디(request_body)와 응답(responses)을 추가하세요.
+                - `swagger_auto_schema`의 `operation_summary`에 API 기능 요약을 추가하세요. 
+                - `@swagger_auto_schema`를 클래스 위가 아니라 **각 메서드 위에 직접 적용하세요.**
+                
                 출력 형식:
                 - 순수한 Python 코드만 생성하세요.
                 - '''(삼중 따옴표)를 사용하지 마세요.
                 - 코드 블록이나 문자열 리터럴로 감싸지 마세요.
                 - 설명과 주석 없이 Django에서 바로 사용할 수 있도록 코드만 출력하세요.
-
-                모델 및 뷰 정의:
-                - serializer를 사용하지 마세요.
-                - API 스펙을 기반으로 Django 뷰를 생성하세요.
-                - 뷰는 Django REST Framework의 `APIView`를 사용하세요.
-                - 각 엔드포인트에 대해 적절한 HTTP 메서드를 구현하세요.
-                - 인증 및 권한 처리가 필요한 경우, `request.user`를 활용하세요. 
                 
                  **주의사항**:
                 - 설명과 주석 없이 Django에서 바로 사용할 수 있도록 '코드만' 출력하세요.
-                - 코드의 맨 앞과 맨 뒤에 설명과 '''(삼중 따옴표)를 붙이지 마세요.
+                - 코드가 오류나지 않게 적절히 import문을 넣고 끝까지 짜주세요.
+                - FORMAT_DATE_TIME 오타 대신 FORMAT_DATETIME를 사용하세요.
             """
             
             try:
             # OpenAI API 호출을 함수로 처리
                 views_code = call_openai_api(prompt)
                 views_py = views_code
+                # '''python 또는 ''' 제거
+                views_code = views_code.strip().replace("```python", "").replace("```", "").strip()
                 return views_code
             except Exception as e:
                 raise Exception(f"Error generating Django models from ERD: {e}")
@@ -290,7 +303,7 @@ def generate_urls_from_views(api_code, app_name):
     """
     views.py에 정의된 API 엔드포인트를 기반으로 urls.py를 동적으로 생성합니다.
     """
-    print(views_py)
+    global views_py  
     # 프롬프트 구성
     prompt = f"""
         {views_py} 코드를 기반으로 Django의 urls.py 파일을 생성하세요.
@@ -321,7 +334,10 @@ def generate_urls_from_views(api_code, app_name):
         if "urlpatterns" not in urls_code or "path" not in urls_code:
             raise ValueError("생성된 urls.py 코드가 유효하지 않습니다.")
         
-        return urls_code.strip()
+        # '''python 또는 ''' 제거
+        urls_code = urls_code.strip().replace("```python", "").replace("```", "").strip()
+        
+        return urls_code
     except Exception as e:
         raise Exception(f"Error generating Django urls from views: {e}")
 
