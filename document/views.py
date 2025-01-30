@@ -575,14 +575,13 @@ def call_openai_api_stream(prompt):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def stream_document(request, document_id):
-
     user = request.user
 
     try:
         # 문서 정보 가져오기
         document = Document.objects.get(id=document_id, user_id=user.id)
         prompt = f"""
-        
+
                         Title: {document.title}
                         Content: {document.content}
                         Requirements: {document.requirements}
@@ -648,7 +647,8 @@ def stream_document(request, document_id):
                 response = openai.chat.completions.create(
                     model="gpt-4o",  # 또는 "gpt-3.5-turbo"
                     messages=[
-                        {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
+                        {"role": "system",
+                         "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
                         {"role": "user", "content": prompt}
                     ],
                     stream=True  # 스트리밍 모드
@@ -661,11 +661,11 @@ def stream_document(request, document_id):
                     else:
                         content = ""
 
-                            if content:
-                                sum_result += content
-                                # JSON이 아닌 순수 텍스트 형태로 전송
-                                for char in content:  # ✅ 한 글자씩 전송
-                                     yield char 
+                    if content:
+                        sum_result += content
+                        # JSON이 아닌 순수 텍스트 형태로 전송
+                        for char in content:  # ✅ 한 글자씩 전송
+                            yield char
 
                 # 문서 저장 처리
                 if sum_result:
