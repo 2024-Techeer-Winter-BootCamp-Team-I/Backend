@@ -551,7 +551,7 @@ def stream_document(request, document_id):
                             if content:
                                 sum_result += content
                                 # JSON이 아닌 순수 텍스트 형태로 전송
-                                yield f"data: {content}\n\n"
+                                yield content
 
                         except json.JSONDecodeError:
                             yield "data: JSONDecodeError\n\n"
@@ -759,7 +759,7 @@ def update_stream_document(request, document_id):
                             if content:
                                 sum_result += content
                                 # JSON이 아닌 순수 텍스트 형태로 전송
-                                yield f"data: {content}\n\n"
+                                yield content
 
                         except json.JSONDecodeError:
                             yield "data: JSONDecodeError\n\n"
