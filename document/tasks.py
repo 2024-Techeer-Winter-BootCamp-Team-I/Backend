@@ -11,30 +11,42 @@ import openai
 # Redis 클라이언트 생성
 redis_client = redis.StrictRedis(host="redis", port=6379, decode_responses=True)
 
-openai_api_key = os.environ.get("OPENAI_API_KEY")
-openai.api_key = openai_api_key
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
+api_key = settings.OPENAI_API_KEY
 
 # DeepSeek API 설정
 #api_key = os.environ.get("DEEPSEEK_API_KEY")
 #api_url = os.environ.get("DEEPSEEK_API_URL")
 
 def call_openai_api(prompt):
-    try:
-        # ChatGPT 모델 호출
-        response = openai.chat.completions.create(
-            model="gpt-4o",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=2000,  # 응답의 최대 토큰 수
-        )
-        print(response)
+    api_url = "https://api.openai.com/v1/chat/completions"
+    api_key = settings.OPENAI_API_KEY
 
-        # 응답에서 메시지 내용 추출
-        message_content = response.choices[0].message.content
-        
-        return message_content
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
 
-    except openai.OpenAIError as e:
-        raise Exception(f"OpenAI API 호출 실패: {str(e)}")
+    payload = {
+        "model": "gpt-4o",  # 정확한 모델 이름으로 변경
+        "messages": [
+            {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다."},
+            {"role": "user", "content": prompt}
+        ],
+        "stream": False
+    }
+
+    response = requests.post(api_url, json=payload, headers=headers)
+
+    if response.status_code == 200:
+        result = response.json()
+        return result["choices"][0]["message"]["content"]
+    else:
+        error_msg = response.json().get("error", "Unknown error occurred.")
+        raise Exception(f"DeepSeek API 호출 실패: {error_msg}")
+
+
     
 
 # def call_deepseek_api(prompt):
