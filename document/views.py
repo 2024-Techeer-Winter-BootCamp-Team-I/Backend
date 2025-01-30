@@ -555,7 +555,7 @@ def stream_document(request, document_id):
                             content = data_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
                             if content:
                                 sum_result += content
-                                # 전체 콘텐츠를 한 번에 전송
+                                content = content.replace("\n", "<br>")
                                 yield f"data: {content}\n\n"
                         except json.JSONDecodeError as e:
                             logger.error(f"JSONDecodeError: {e} for data: {data}")
@@ -735,50 +735,46 @@ def update_stream_document(request, document_id):
             sum_result = ""
 
             for chunk in call_openai_api_stream(prompt):
-                lines = chunk.strip().split("\n")
-                for line in lines:
-                    if line.startswith("data: "):
-                        data_str = line[6:].strip()
+                chunk = chunk.strip()
+                logger.debug(f"Received chunk: {chunk}")
 
-                        if data_str == "[DONE]":
-                            # 최종 누적 결과를 DB에 저장
+                # 청크를 라인 단위로 분리
+                lines = chunk.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if not line:
+                        continue
+
+                    if line.startswith("data: "):
+                        data = line[len("data: "):]
+                        logger.debug(f"Processed data: {data}")
+
+                        if data == "[DONE]":
                             document.result = sum_result
                             document.save()
-                            # 클라이언트 측에 DONE 알림
-                            yield "data: [DONE]\n\n"
+                            yield "event: done\ndata: [DONE]\n\n"
                             return
-
                         try:
-                            data_json = json.loads(data_str)
-                            content = data_json.get("choices", [{}])[0] \
-                                .get("delta", {}) \
-                                .get("content", "")
-
+                            data_json = json.loads(data)
+                            content = data_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
                             if content:
                                 sum_result += content
-                                # JSON이 아닌 순수 텍스트 형태로 전송
-                                yield content
-
-                        except json.JSONDecodeError:
+                                content = content.replace("\n", "<br>")
+                                yield f"data: {content}\n\n"
+                        except json.JSONDecodeError as e:
+                            logger.error(f"JSONDecodeError: {e} for data: {data}")
                             yield "data: JSONDecodeError\n\n"
-            else:
-                pass
 
-        response = StreamingHttpResponse(sse(), content_type="text/event-stream; charset=utf-8")
+        response = StreamingHttpResponse(sse(), content_type="text/event-stream")
+        response["Cache-Control"] = "no-cache"
+        response["Connection"] = "keep-alive"
+        response["Access-Control-Allow-Origin"] = "https://devsketch.xyz"
         return response
 
-
     except Document.DoesNotExist:
-        return JsonResponse({
-            "status": "error",
-            "message": "Document not found or you don't have permission to access it."
-        }, status=status.HTTP_404_NOT_FOUND)
-
+        return JsonResponse({"status": "error", "message": "문서를 찾을 수 없습니다."}, status=404)
     except Exception as e:
-        return JsonResponse({
-            "status": "error",
-            "message": str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 
 # def update_stream_document(request, document_id):
