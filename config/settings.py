@@ -271,6 +271,8 @@ ALLOWED_HOSTS = ['devsketch.xyz', 'www.devsketch.xyz', 'localhost', '127.0.0.1',
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 DEEPSEEK_API_URL = os.getenv('DEEPSEEK_API_URL')
 
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+
 # 로컬 환경
 BACKEND_DOMAIN = 'localhost:8000'
 

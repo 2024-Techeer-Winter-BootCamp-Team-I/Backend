@@ -26,12 +26,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-openai_api_key = os.environ.get("OPENAI_API_KEY")
-openai.api_key = openai_api_key
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
 
 # openai.api_key = os.environ.get("DEEPSEEK_API_KEY")
 # openai.api_base = os.environ.get("DEEPSEEK_API_URL")
 
+# 문서 생성 api
 @swagger_auto_schema(
     methods=['POST'],
     operation_summary="문서 생성 API",
@@ -147,7 +148,7 @@ def documents(request):
             }, status=500)
 
 #----------------------------------------------------------
-
+# 문서 수정 api
 @swagger_auto_schema(
     method='put',
     operation_summary="문서 수정 API",
@@ -222,7 +223,7 @@ def update_document(request, document_id):
         }, status=400)
 
 #----------------------------------------------------------
-
+# 설계 생성 api
 @swagger_auto_schema(
     method = 'post',
     operation_summary = "설계 생성 API",
@@ -305,7 +306,7 @@ def dev_document(request, document_id):
     }, status = status.HTTP_200_OK)
 
 #----------------------------------------------------------
-
+# 설계 파트 저장 api
 @swagger_auto_schema(
     method='post',
     operation_summary="설계 파트 저장 API",
@@ -399,7 +400,7 @@ def save_document_part(request, document_id):
         }, status=404)
 
 #----------------------------------------------------------
-
+# 세팅 저장 api
 @api_view(['POST'])
 def setup_project(request, document_id):
     """
@@ -446,122 +447,7 @@ def setup_project(request, document_id):
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 #----------------------------------------------------------
-
-def call_openai_api(prompt):
-    try:
-        # ChatGPT 모델 호출
-        response = openai.Completion.create(
-            model="gpt-4o", 
-            prompt=prompt,
-            max_tokens=1000,  # 응답의 최대 토큰 수
-        )
-
-        # OpenAI의 응답 내용 반환
-        return response["choices"][0]["text"]
-
-    except openai.error.OpenAIError as e:
-        raise Exception(f"OpenAI API 호출 실패: {str(e)}")
-
-# 테스트
-if __name__ == "__main__":
-    prompt = "안녕하세요, ChatGPT API를 호출하는 방법을 알려주세요."
-    result = call_openai_api(prompt)
-    print(result)
-
-# def call_deepseek_api(prompt):
-#     api_url = "https://api.deepseek.com/v1/chat/completions"
-#     api_key = settings.DEEPSEEK_API_KEY
-
-#     payload = {
-#         "model": "deepseek-chat",
-#         "messages": [
-#             {"role": "user", "content": prompt}
-#         ],
-#         "stream": False
-#     }
-
-#     headers = {
-#         "Content-Type": "application/json",
-#         "Authorization": f"Bearer {api_key}"
-#     }
-
-#     response = requests.post(api_url, json=payload, headers=headers)
-
-#     if response.status_code == 200:
-#         review_result = response.json()
-#         return review_result['choices'][0]['message']['content']
-#     else:
-#         error_msg = response.json().get("error", "Unknown error occurred.")
-#         raise Exception(f"DeepSeek API failed: {error_msg}")
-
-
-#----------------------------------------------------------
-
-def call_openai_api_stream(prompt):
-    try:
-        # OpenAI의 스트리밍을 사용한 ChatGPT 모델 호출
-        response = openai.completions.create(
-            model="4",
-            messages=[
-                {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
-                {"role": "user", "content": prompt}
-            ],
-            stream=True  # 스트리밍 모드 활성화
-        )
-
-        # 스트리밍 응답 처리
-        for chunk in response:
-            if 'choices' in chunk:
-                text = chunk['choices'][0].get('message', {}).get('content', '')
-                if text:
-                    logger.debug(f"Received chunk: {text}")
-                    yield text
-
-    except openai.error.OpenAIError as e:
-        error_message = f"OpenAI API 호출 실패: {str(e)}"
-        logger.error(error_message)
-        raise Exception(error_message)
-
-# def call_deepseek_api_stream(prompt):
-#     api_url = "https://api.deepseek.com/v1/chat/completions"
-#     api_key = settings.DEEPSEEK_API_KEY
-
-#     payload = {
-#         "model": "deepseek-chat",
-#         "messages": [
-#             {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
-#             {"role": "user", "content": prompt}
-#         ],
-#         "stream": True
-#     }
-
-#     headers = {
-#         "Content-Type": "application/json",
-#         "Authorization": f"Bearer {api_key}"
-#     }
-
-#     try:
-#         with requests.post(api_url, json=payload, headers=headers, stream=True) as response:
-#             if response.status_code != 200:
-#                 try:
-#                     error_msg = response.json().get("error", "Unknown error occurred.")
-#                 except ValueError:
-#                     error_msg = "Unknown error occurred."
-#                 logger.error(f"DeepSeek API failed with status {response.status_code}: {error_msg}")
-#                 raise Exception(f"DeepSeek API failed: {error_msg}")
-
-#             for chunk in response.iter_content(chunk_size=None):
-#                 if chunk:
-#                     decoded_chunk = chunk.decode("utf-8")
-#                     logger.debug(f"Received chunk: {decoded_chunk}")
-#                     yield decoded_chunk
-#     except requests.RequestException as e:
-#         error_message = f"RequestException: {str(e)}"
-#         logger.error(error_message)
-#         raise Exception(error_message)
-
-#----------------------------------------------------------
-
+# 문서결과 스트리밍 api
 @swagger_auto_schema(
     method='get',
     operation_summary="문서결과 스트리밍 API",
@@ -638,51 +524,43 @@ def stream_document(request, document_id):
                             위의 출력 예시는 쇼핑몰 예시입니다. 사용자가 입력한 정보를 바탕으로 예시를 참고하여 출력해주세요.
                         """
 
-        # SSE 스트리밍을 위한 함수
+        # 스트리밍을 위한 제너레이터 함수
         def sse():
             sum_result = ""
 
-            try:
-                # OpenAI 스트리밍 API 호출
-                response = openai.chat.completions.create(
-                    model="gpt-4o",  # 또는 "gpt-3.5-turbo"
-                    messages=[
-                        {"role": "system",
-                         "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    stream=True  # 스트리밍 모드
-                )
+            for chunk in call_openai_api_stream(prompt):
+                lines = chunk.strip().split("\n")
+                for line in lines:
+                    if line.startswith("data: "):
+                        data_str = line[6:].strip()
 
-                # 스트리밍 응답 처리
-                for chunk in response:
-                    if hasattr(chunk.choices[0], "delta"):
-                        content = chunk.choices[0].delta.content or ""  # None 방지
-                    else:
-                        content = ""
+                        if data_str == "[DONE]":
+                            # 최종 누적 결과를 DB에 저장
+                            document.result = sum_result
+                            document.save()
+                            # 클라이언트 측에 DONE 알림
+                            yield "data: [DONE]\n\n"
+                            return
 
-                    if content:
-                        sum_result += content
-                        # JSON이 아닌 순수 텍스트 형태로 전송
-                        for char in content:  # ✅ 한 글자씩 전송
-                            yield char
+                        try:
+                            data_json = json.loads(data_str)
+                            content = data_json.get("choices", [{}])[0] \
+                                .get("delta", {}) \
+                                .get("content", "")
 
-                # 문서 저장 처리
-                if sum_result:
-                    document.result = sum_result
-                    document.save()
+                            if content:
+                                sum_result += content
+                                # JSON이 아닌 순수 텍스트 형태로 전송
+                                yield f"data: {content}\n\n"
 
-                # 스트리밍 종료 후 클라이언트에 알림
-                yield "data: [DONE]\n\n"
+                        except json.JSONDecodeError:
+                            yield "data: JSONDecodeError\n\n"
+            else:
+                pass
 
-            except openai.OpenAIError as e:
-                yield f"data: OpenAI API 호출 실패: {str(e)}\n\n"
-            except Exception as e:
-                yield f"data: {str(e)}\n\n"
-
-        # SSE로 응답 반환
         response = StreamingHttpResponse(sse(), content_type="text/event-stream; charset=utf-8")
         return response
+
 
     except Document.DoesNotExist:
         return JsonResponse({
@@ -810,6 +688,9 @@ def stream_document(request, document_id):
 #         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 #----------------------------------------------------------
+
+#----------------------------------------------------------
+# 수정사항 문서결과 스트리밍 api
 @swagger_auto_schema(
     method='put',
     operation_summary="수정사항 문서결과 스트리밍 API",
@@ -901,6 +782,7 @@ def update_stream_document(request, document_id):
             "message": str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 # def update_stream_document(request, document_id):
 
 #     user = request.user
@@ -913,7 +795,7 @@ def update_stream_document(request, document_id):
 #                         기존문서: {document.result}
 #                         추가문서: {modifications}
 #                         기존 내용을 바탕으로 추가문서를 적용시켜 체계적인 기능명세서를 작성해주세요. 다음 지시사항을 정확히 따라주세요:
-                        
+
 #                         **추가 요구사항**
 #                         - 마지막 요약은 빼주세요.
 #                         - 절대적으로 기존문서의 양식을 지켜야합니다. 최대한 기존문서를 수정하지말고, 추가문서에 대한 정보에만 추가하거나 수정해주세요.
@@ -971,3 +853,138 @@ def update_stream_document(request, document_id):
 # #----------------------------------------------------------
 # # SSL 인증서 파일 경로 설정
 # os.environ["SSL_CERT_FILE"] = certifi.where()
+#----------------------------------------------------------
+
+
+
+#----------------------------------------------------------
+
+#----------------------------------------------------------
+# open ai api
+def call_openai_api(prompt):
+    try:
+        # ChatGPT 모델 호출
+        response = openai.Completion.create(
+            model="gpt-4o",
+            prompt=prompt,
+            max_tokens=1000,  # 응답의 최대 토큰 수
+        )
+
+        # OpenAI의 응답 내용 반환
+        return response["choices"][0]["text"]
+
+    except openai.error.OpenAIError as e:
+        raise Exception(f"OpenAI API 호출 실패: {str(e)}")
+
+# def call_deepseek_api(prompt):
+#     api_url = "https://api.deepseek.com/v1/chat/completions"
+#     api_key = settings.DEEPSEEK_API_KEY
+
+#     payload = {
+#         "model": "deepseek-chat",
+#         "messages": [
+#             {"role": "user", "content": prompt}
+#         ],
+#         "stream": False
+#     }
+
+#     headers = {
+#         "Content-Type": "application/json",
+#         "Authorization": f"Bearer {api_key}"
+#     }
+
+#     response = requests.post(api_url, json=payload, headers=headers)
+
+#     if response.status_code == 200:
+#         review_result = response.json()
+#         return review_result['choices'][0]['message']['content']
+#     else:
+#         error_msg = response.json().get("error", "Unknown error occurred.")
+#         raise Exception(f"DeepSeek API failed: {error_msg}")
+
+
+#----------------------------------------------------------
+# open api streaming api
+def call_openai_api_stream(prompt):
+    api_url = "https://api.openai.com/v1/chat/completions"
+    api_key = settings.OPENAI_API_KEY
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+
+    payload = {
+        "model": "gpt-4o",  # 정확한 모델 이름으로 변경
+        "messages": [
+            {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다."},
+            {"role": "user", "content": prompt}
+        ],
+        "stream": True
+    }
+
+    try:
+        with requests.post(api_url, json=payload, headers=headers, stream=True) as response:
+            if response.status_code != 200:
+                try:
+                    error_msg = response.json().get("error", "Unknown error occurred.")
+                except ValueError:
+                    error_msg = "Unknown error occurred."
+                logger.error(f"OpenAI API failed with status {response.status_code}: {error_msg}")
+                raise Exception(f"OpenAI API failed: {error_msg}")
+
+            for chunk in response.iter_content(chunk_size=None):
+                if chunk:
+                    decoded_chunk = chunk.decode("utf-8")
+                    logger.debug(f"Received chunk: {decoded_chunk}")
+                    yield decoded_chunk
+    except requests.RequestException as e:
+        error_message = f"RequestException: {str(e)}"
+        logger.error(error_message)
+        raise Exception(error_message)
+    except Exception as e:
+        error_message = f"Unexpected error: {str(e)}"
+        logger.error(error_message)
+        raise Exception(error_message)
+
+# def call_deepseek_api_stream(prompt):
+#     api_url = "https://api.deepseek.com/v1/chat/completions"
+#     api_key = settings.DEEPSEEK_API_KEY
+
+#     payload = {
+#         "model": "deepseek-chat",
+#         "messages": [
+#             {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
+#             {"role": "user", "content": prompt}
+#         ],
+#         "stream": True
+#     }
+
+#     headers = {
+#         "Content-Type": "application/json",
+#         "Authorization": f"Bearer {api_key}"
+#     }
+
+#     try:
+#         with requests.post(api_url, json=payload, headers=headers, stream=True) as response:
+#             if response.status_code != 200:
+#                 try:
+#                     error_msg = response.json().get("error", "Unknown error occurred.")
+#                 except ValueError:
+#                     error_msg = "Unknown error occurred."
+#                 logger.error(f"DeepSeek API failed with status {response.status_code}: {error_msg}")
+#                 raise Exception(f"DeepSeek API failed: {error_msg}")
+
+#             for chunk in response.iter_content(chunk_size=None):
+#                 if chunk:
+#                     decoded_chunk = chunk.decode("utf-8")
+#                     logger.debug(f"Received chunk: {decoded_chunk}")
+#                     yield decoded_chunk
+#     except requests.RequestException as e:
+#         error_message = f"RequestException: {str(e)}"
+#         logger.error(error_message)
+#         raise Exception(error_message)
+
+#----------------------------------------------------------
+
+#----------------------------------------------------------
