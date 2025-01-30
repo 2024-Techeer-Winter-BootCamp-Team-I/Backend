@@ -736,39 +736,39 @@ def update_stream_document(request, document_id):
         def sse():
             sum_result = ""
 
-            try:
-                # OpenAI API 호출
-                response = openai.completions.create(
-                    model="gpt-4o",  # 또는 원하는 모델로 변경
-                    messages=[
-                        {"role": "system", "content": "당신은 전문적인 기술 문서를 작성하는 전문가입니다. 주어진 입력을 바탕으로 명확하고 실용적인 기능 명세서를 작성하세요."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    stream=True  # 스트리밍 모드 활성화
-                )
+            for chunk in call_openai_api_stream(prompt):
+                lines = chunk.strip().split("\n")
+                for line in lines:
+                    if line.startswith("data: "):
+                        data_str = line[6:].strip()
 
-                # 스트리밍 응답 처리
-                for chunk in response:
-                    if chunk.get("choices"):
-                        delta_content = chunk["choices"][0]["delta"].get("content", "")
-                        if delta_content:
-                            sum_result += delta_content
-                            # 누적된 결과를 스트리밍 방식으로 클라이언트에게 전송
-                            yield f"data: {delta_content}\n\n"
+                        if data_str == "[DONE]":
+                            # 최종 누적 결과를 DB에 저장
+                            document.result = sum_result
+                            document.save()
+                            # 클라이언트 측에 DONE 알림
+                            yield "data: [DONE]\n\n"
+                            return
 
-                # 최종 결과가 끝나면 [DONE]을 반환
-                document.result = sum_result
-                document.save()
-                yield "data: [DONE]\n\n"
+                        try:
+                            data_json = json.loads(data_str)
+                            content = data_json.get("choices", [{}])[0] \
+                                .get("delta", {}) \
+                                .get("content", "")
 
-            except openai.OpenAIError as e:
-                yield f"data: OpenAIError: {str(e)}\n\n"
+                            if content:
+                                sum_result += content
+                                # JSON이 아닌 순수 텍스트 형태로 전송
+                                yield f"data: {content}\n\n"
 
-            except Exception as e:
-                yield f"data: Error: {str(e)}\n\n"
+                        except json.JSONDecodeError:
+                            yield "data: JSONDecodeError\n\n"
+            else:
+                pass
 
         response = StreamingHttpResponse(sse(), content_type="text/event-stream; charset=utf-8")
         return response
+
 
     except Document.DoesNotExist:
         return JsonResponse({
