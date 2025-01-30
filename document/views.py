@@ -757,8 +757,7 @@ def update_stream_document(request, document_id):
                             if content:
                                 sum_result += content
                                 # JSON이 아닌 순수 텍스트 형태로 전송
-                                for char in content:
-                                    yield char
+                                yield content
 
                         except json.JSONDecodeError:
                             yield "data: JSONDecodeError\n\n"
