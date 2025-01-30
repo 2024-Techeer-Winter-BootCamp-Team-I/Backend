@@ -203,6 +203,8 @@ def generate_swagger_from_api(api_code):
     }}
     """
 
+views_py=""
+
 def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
     """
     ERD 코드와 API 코드를 기반으로 백엔드 기술 스택에 맞는 엔드포인트 코드를 생성합니다.
@@ -223,10 +225,10 @@ def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
 
                 모델 및 뷰 정의:
                 - serializer를 사용하지 마세요.
-                - ERD 코드를 기반으로 Django 모델을 생성하세요.
                 - API 스펙을 기반으로 Django 뷰를 생성하세요.
                 - 뷰는 Django REST Framework의 `APIView`를 사용하세요.
                 - 각 엔드포인트에 대해 적절한 HTTP 메서드를 구현하세요.
+                - 인증 및 권한 처리가 필요한 경우, `request.user`를 활용하세요. 
                 
                  **주의사항**:
                 - 설명과 주석 없이 Django에서 바로 사용할 수 있도록 '코드만' 출력하세요.
@@ -236,6 +238,7 @@ def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
             try:
             # OpenAI API 호출을 함수로 처리
                 views_code = call_openai_api(prompt)
+                views_py = views_code
                 return views_code
             except Exception as e:
                 raise Exception(f"Error generating Django models from ERD: {e}")
@@ -287,39 +290,27 @@ def generate_urls_from_views(api_code, app_name):
     """
     views.py에 정의된 API 엔드포인트를 기반으로 urls.py를 동적으로 생성합니다.
     """
-    # views_path = f"{app_name}/views.py"
-    
-    # # 파일 존재 여부 확인
-    # if not os.path.exists(views_path):
-    #     raise FileNotFoundError(f"'{views_path}' 파일이 존재하지 않습니다.")
-
-    # # views.py 내용 읽기
-    # try:
-    #     with open(views_path, "r") as f:
-    #         views_content = f.read()
-    # except Exception as e:
-    #     raise Exception(f"'{views_path}' 파일을 읽는 중 오류 발생: {e}")
-
-    # print(views_content)
-    
+    print(views_py)
     # 프롬프트 구성
     prompt = f"""
-        {api_code}코드를 기반으로 urls.py 코드를 생성하세요. 아래 지시사항을 정확히 따라주세요:
-
-        1. **URL 패턴 정의**
-        - 각 함수형 뷰 또는 클래스형 뷰를 기반으로 URL 패턴을 생성하세요.
-        - 함수형 뷰는 `path()`를 사용하고, 클래스형 뷰는 `as_view()`를 호출하여 `path()`로 연결하세요.
-        - `urlpatterns` 리스트에 모든 URL 패턴을 정의하세요.
-
-        2. **앱 이름 지정**
-        - `app_name`을 `api`로 설정하세요.
+        {views_py} 코드를 기반으로 Django의 urls.py 파일을 생성하세요.
+        **반드시 아래 지시사항을 따르세요.**
         
-        3. **출력 형식**
-        - 생성된 urls.py 코드만 출력하세요. 다른 설명은 생략하세요.
-        - Django에서 바로 사용할 수 있도록 코드만 출력하세요.
+        1. **URL 패턴 생성**
+        - `위에 제공된 views파일`에 정의된 모든 클래스형 뷰(Class-based View, CBV)와 함수형 뷰(Function-based View, FBV)를 분석하세요.
+        - 위에서 제공한 view파일에 있는 클래스형 뷰를 전부 다 `as_view()`를 호출하여 `path()`로 매핑하세요.
+        - 필요하다면 파라미터도 반영하세요.
+
+        2. **출력 형식**
+        - **오직 코드만 출력하세요.** (설명, 주석 X)
+        - Django에서 바로 사용할 수 있도록 Python 코드만 출력하세요.
         - 삼중 따옴표(`'''`)를 사용하지 마세요.
         - 코드 블록이나 문자열 리터럴로 감싸지 마세요.
-        
+        - 'import문부터 urlpatterns 리스트까지 포함한 완전한 코드'만 출력하세요.
+
+        3. **주의사항**
+        - `위에 제공된views_py`에서 클래스형/함수형 뷰를 자동으로 판별하여 URL 패턴을 생성하세요.
+        - 뷰 이름과 엔드포인트가 일치해야 합니다.
     """
 
     try:
