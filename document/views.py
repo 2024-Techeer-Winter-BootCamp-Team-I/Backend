@@ -525,8 +525,6 @@ def stream_document(request, document_id):
                         """
 
         # 스트리밍을 위한 제너레이터 함수
-        # 스트리밍을 위한 제너레이터 함수
-        # 스트리밍을 위한 제너레이터 함수
         def sse():
             sum_result = ""
 
