@@ -113,7 +113,7 @@ def create_dind_handler(request):
             return Response(
                 {
                     "message": "도커 컨테이너 생성 및 서비스 실행 성공",
-                    "url": f"http://{github_name}/devsketch.xyz/swagger/"
+                    "url": f"http://{github_name}.devsketch.xyz/swagger/"
                  },
 
                 status=status.HTTP_201_CREATED,
