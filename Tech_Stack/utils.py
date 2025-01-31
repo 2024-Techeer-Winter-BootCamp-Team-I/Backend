@@ -41,6 +41,13 @@ def find_matching_template(tech_stack_name, project_type):
         template_lower = template.lower()
         # 템플릿 이름을 소문자로 변환하고, 기술 스택이 모두 포함되어 있는지 확인
         if all(tech in template_lower for tech in tech_stack_name):
-            return os.path.join("Tech_Stack", project_type.capitalize(), template)
+            # 템플릿 경로를 사용자가 선택한 템플릿에 맞춰서 절대 경로로 반환
+            template_path = os.path.join("Tech_Stack", project_type.capitalize(), template)
+            
+            # 절대 경로를 현재 작업 디렉터리와 무관하게 고정된 기준으로 처리
+            base_dir = '/DevSketch-Backend'  # 고정된 경로 설정
+            fixed_path = os.path.join(base_dir, template_path)
+            
+            return os.path.abspath(fixed_path)  # 절대 경로로 반환
 
     return None
