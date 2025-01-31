@@ -50,7 +50,7 @@ def call_openai_api(prompt):
         raise Exception(f"OpenAI API 호출 실패: {str(e)}")
 
 
-# def call_deepseek_api(prompt):
+# def call_deepseek_api(prompt):  # 딥시크 코드
 #     payload = {
 #         "model": "deepseek-chat",
 #         "messages": [{"role": "user", "content": prompt}],
@@ -261,7 +261,7 @@ def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
     else:
         raise ValueError("지원되지 않는 백엔드 기술 스택입니다.")
 
-# def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
+# def generate_api_endpoints(erd_code, api_code, backend_tech_stack):  # 딥시크 코드
 #     """
 #     ERD 코드와 API 코드를 기반으로 백엔드 기술 스택에 맞는 엔드포인트 코드를 생성합니다.
 #     """
@@ -342,7 +342,7 @@ def generate_urls_from_views(api_code, app_name):
         raise Exception(f"Error generating Django urls from views: {e}")
 
 # @shared_task
-# def generate_urls_from_views(api_code, app_name):
+# def generate_urls_from_views(api_code, app_name):  # 딥시크 코드
 #     """
 #     views.py에 정의된 API 엔드포인트를 기반으로 urls.py를 동적으로 생성합니다.
 #     """
