@@ -102,13 +102,19 @@ def create_dind_handler(request):
                 )
 
             #docker-compose 실행
-            compose_command = f"docker-compose -f {repo_name}/docker-compose.yml up --build -d"
-            exit_code, output = container.exec_run(compose_command, tty=True, privileged=True)
-            if exit_code != 0:
-                return Response(
-                    {"error": f"docker-compose 실행 실패: {output.decode()}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+            compose_command1 = f"docker-compose -f {repo_name}/docker-compose.yml up --build -d"
+            exit_code1, output1 = container.exec_run(compose_command1, tty=True, privileged=True)
+
+            if exit_code1 != 0:
+                # 첫 번째 명령어 실패 시 두 번째 경로 시도
+                compose_command2 = f"docker-compose -f backend/{repo_name}/docker-compose.yml up --build -d"
+                exit_code2, output2 = container.exec_run(compose_command2, tty=True, privileged=True)
+
+                if exit_code2 != 0:
+                    return Response(
+                        {"error": f"docker-compose 실행 실패: {output2.decode()}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    )
 
             return Response(
                 {
