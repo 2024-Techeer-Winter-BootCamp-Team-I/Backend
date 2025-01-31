@@ -8,6 +8,8 @@ from django.conf import settings
 from .utils import find_matching_template
 from django.core.management import call_command
 from django.views import View
+from celery import shared_task
+from celery import chain
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -16,7 +18,6 @@ from openai import OpenAI
 import openai
 import requests
 import redis
-import time
 
 # OpenAI API 키 설정
 openai_api_key = os.environ.get("OPENAI_API_KEY")
@@ -69,6 +70,7 @@ def call_openai_api(prompt):
 #         error_msg = response.json().get("error", "Unknown error occurred.")
 #         raise Exception(f"DeepSeek API 호출 실패: {error_msg}")
 
+@shared_task
 def copy_template_files(project_dir, frontend_template_dir, backend_template_dir):
     """
     프론트엔드 및 백엔드 템플릿 파일을 복사하는 Celery 태스크
@@ -88,7 +90,7 @@ def copy_template_files(project_dir, frontend_template_dir, backend_template_dir
     except Exception as e:
         raise Exception(f"Error copying template files: {e}")
     
-
+@shared_task
 def generate_models_from_erd(erd_code):
     """
     ERD 코드를 기반으로 Django 모델 코드를 생성합니다.
@@ -173,6 +175,7 @@ def generate_models_from_erd(erd_code):
 #     except Exception as e:
 #         raise Exception(f"Error generating Django models from ERD: {e}")
 
+@shared_task
 def clean_api_code(api_code):
     """
     api_code에서 Markdown 코드 블록을 제거하고 순수한 JSON 데이터를 반환합니다.
@@ -203,6 +206,8 @@ def generate_swagger_from_api(api_code):
 
 views_py=""
 
+
+@shared_task
 def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
     """
     ERD 코드와 API 코드를 기반으로 백엔드 기술 스택에 맞는 엔드포인트 코드를 생성합니다.
@@ -294,6 +299,8 @@ def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
 #         raise ValueError("지원되지 않는 백엔드 기술 스택입니다.")
 
     
+    
+@shared_task
 def generate_urls_from_views(api_code, app_name):
     """
     views.py에 정의된 API 엔드포인트를 기반으로 urls.py를 동적으로 생성합니다.
@@ -489,6 +496,7 @@ volumes:
 
     return docker_compose_path
 
+@shared_task
 def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, frontend_tech_stack, backend_tech_stack):
     try:
         os.makedirs(project_dir, exist_ok=True)
@@ -514,8 +522,6 @@ def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, fro
 
             # 디렉터리 복사
             shutil.copytree(backend_template_dir, backend_dir, dirs_exist_ok=True)
-
-            time.sleep(1)
 
             # 복사된 디렉터리가 존재하는지 확인
             print(f"복사 후 디렉터리 존재 여부: {os.path.exists(backend_dir)}")
@@ -595,6 +601,7 @@ def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, fro
         print("여기")
         raise Exception(f"설계 결과물과 초기 디렉터리 합치기 중 오류 발생: {str(e)}")
 
+@shared_task
 def generate_project_structure(erd_code, api_code, diagram_code, project_dir):
     """
     설계 문서를 기반으로 프로젝트 구조를 생성합니다.
@@ -615,6 +622,7 @@ def generate_project_structure(erd_code, api_code, diagram_code, project_dir):
     except Exception as e:
         return f"프로젝트 구조 생성 중 오류 발생: {str(e)}"
 
+@shared_task
 def push_to_github(project_dir, repo_name, user):
     """
     프로젝트 디렉터리를 GitHub에 푸시합니다.
@@ -634,6 +642,7 @@ def push_to_github(project_dir, repo_name, user):
     except Exception as e:
         return f"GitHub 푸시 중 오류 발생: {str(e)}"
 
+@shared_task
 def setup_project_chain(document_id, repo_name, username, email, access_token, organization_name=None, private=False):
     try:
         document = Document.objects.get(id=document_id)

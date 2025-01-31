@@ -99,14 +99,14 @@ class TechStackSetupView(ViewSet):
             if document_id and document_id != 0:
                 try:
                     document = Document.objects.get(id=document_id)
-                    merge_design_with_project(
+                    merge_design_with_project.delay(
                         project_dir=project_dir,
                         erd_code=document.erd_code,
                         api_code=document.api_code,
                         diagram_code=document.diagram_code,
                         frontend_tech_stack=frontend_tech_stack,
                         backend_tech_stack=backend_tech_stack
-                    )
+                    ).get()
                     message = "초기 디렉터리 생성 및 설계 결과물 합치기 성공"
                 except Document.DoesNotExist:
                     return Response(
@@ -243,7 +243,7 @@ class MergeDesignWithProjectView(APIView):
                     document = Document.objects.get(id=document_id)
 
                     # 설계 결과물과 초기 디렉터리 합치기
-                    merge_design_with_project(
+                    merge_design_with_project.delay(
                         project_dir=project_dir,
                         erd_code=document.erd_code,
                         api_code=document.api_code,
@@ -267,7 +267,7 @@ class MergeDesignWithProjectView(APIView):
 
             # Celery 태스크 실행 (프론트엔드 또는 백엔드 중 하나라도 있으면 실행)
             if frontend_template_dir or backend_template_dir:
-                task = copy_template_files(project_dir, frontend_template_dir, backend_template_dir)
+                task = copy_template_files.delay(project_dir, frontend_template_dir, backend_template_dir)
                 logger.info(f"Celery 태스크 ID: {task.id}")
 
                 return Response(  # 성공 시
