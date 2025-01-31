@@ -166,8 +166,8 @@ class LoginGithubCallbackView(APIView):
         # 토큰을 쿠키에 저장
         # 클라이언트와 동일한 도메인으로 설정
         # 다른 도메인 간 쿠키 공유 허용
-        res.set_cookie("jwt_access",jwt_access_token,httponly=True,samesite="None",secure=True)
-        res.set_cookie("refresh", refresh_token, httponly=True,samesite="None",secure=True)
+        res.set_cookie("jwt_access",jwt_access_token,httponly=True,samesite="Lax",secure=False)
+        res.set_cookie("refresh", refresh_token, httponly=True,samesite="Lax",secure=False)
 
         return res
 
