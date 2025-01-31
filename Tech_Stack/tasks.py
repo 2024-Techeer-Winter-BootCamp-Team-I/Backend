@@ -4,9 +4,7 @@ import re
 import shutil
 import subprocess
 import textwrap
-from celery import shared_task
 from django.conf import settings
-from celery import chain
 from .utils import find_matching_template
 from django.core.management import call_command
 from django.views import View
@@ -18,7 +16,7 @@ from openai import OpenAI
 import openai
 import requests
 import redis
-
+import time
 
 # OpenAI API 키 설정
 openai_api_key = os.environ.get("OPENAI_API_KEY")
@@ -71,28 +69,26 @@ def call_openai_api(prompt):
 #         error_msg = response.json().get("error", "Unknown error occurred.")
 #         raise Exception(f"DeepSeek API 호출 실패: {error_msg}")
 
-@shared_task
 def copy_template_files(project_dir, frontend_template_dir, backend_template_dir):
     """
     프론트엔드 및 백엔드 템플릿 파일을 복사하는 Celery 태스크
     """
     try:
         if frontend_template_dir:
-            if os.path.exists(os.path.join(project_dir, "frontend")):
-                shutil.rmtree(os.path.join(project_dir, "frontend"))
+            #if os.path.exists(os.path.join(project_dir, "frontend")):
+            #    shutil.rmtree(os.path.join(project_dir, "frontend"))
             shutil.copytree(frontend_template_dir, os.path.join(project_dir, "frontend"))
 
         if backend_template_dir:
-            if os.path.exists(os.path.join(project_dir, "backend")):
-                shutil.rmtree(os.path.join(project_dir, "backend"))
+            #if os.path.exists(os.path.join(project_dir, "backend")):
+            #    shutil.rmtree(os.path.join(project_dir, "backend"))
             shutil.copytree(backend_template_dir, os.path.join(project_dir, "backend"))
 
         return True
     except Exception as e:
         raise Exception(f"Error copying template files: {e}")
     
-    
-@shared_task
+
 def generate_models_from_erd(erd_code):
     """
     ERD 코드를 기반으로 Django 모델 코드를 생성합니다.
@@ -298,7 +294,6 @@ def generate_api_endpoints(erd_code, api_code, backend_tech_stack):
 #         raise ValueError("지원되지 않는 백엔드 기술 스택입니다.")
 
     
-@shared_task
 def generate_urls_from_views(api_code, app_name):
     """
     views.py에 정의된 API 엔드포인트를 기반으로 urls.py를 동적으로 생성합니다.
@@ -494,32 +489,46 @@ volumes:
 
     return docker_compose_path
 
-@shared_task
 def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, frontend_tech_stack, backend_tech_stack):
     try:
         os.makedirs(project_dir, exist_ok=True)
 
-        # 프론트엔드 템플릿 복사
-        if frontend_tech_stack:
-            frontend_template_dir = find_matching_template(frontend_tech_stack, "frontend")
-            if frontend_template_dir:
-                if os.path.exists(os.path.join(project_dir, "frontend")):
-                    shutil.rmtree(os.path.join(project_dir, "frontend"))
-                shutil.copytree(frontend_template_dir, os.path.join(project_dir, "frontend"))
-            else:
-                raise Exception(f"프론트엔드 기술 스택에 맞는 템플릿을 찾을 수 없습니다: {frontend_tech_stack}")
-
         # 백엔드 템플릿 복사
         if backend_tech_stack:
             backend_template_dir = find_matching_template(backend_tech_stack, "backend")
+            print("백엔드 템플릿 디렉토리:", backend_template_dir)
+
             if not backend_template_dir:
                 raise Exception("백엔드 기술 스택에 맞는 템플릿을 찾을 수 없습니다.")
 
             backend_dir = os.path.join(project_dir, "backend")
-            if os.path.exists(backend_dir):
-                shutil.rmtree(backend_dir)
+            print("백엔드 디렉토리:", backend_dir)
 
-            shutil.copytree(backend_template_dir, backend_dir)
+            # 경로가 올바른지 확인
+            backend_template_dir = os.path.abspath(backend_template_dir)  # 절대 경로로 변환
+            print("백엔드 템플릿 절대 경로:", backend_template_dir)
+
+            # 경로가 실제 존재하는지 확인
+            if not os.path.exists(backend_template_dir):
+                raise Exception(f"지정된 백엔드 템플릿 경로가 존재하지 않습니다: {backend_template_dir}")
+
+            # 디렉터리 복사
+            shutil.copytree(backend_template_dir, backend_dir, dirs_exist_ok=True)
+
+            time.sleep(1)
+
+            # 복사된 디렉터리가 존재하는지 확인
+            print(f"복사 후 디렉터리 존재 여부: {os.path.exists(backend_dir)}")
+
+        # 프론트엔드 템플릿 복사
+        if frontend_tech_stack:
+            frontend_template_dir = find_matching_template(frontend_tech_stack, "frontend")
+            if not frontend_template_dir:
+                raise Exception("프론트엔드 기술 스택에 맞는 템플릿을 찾을 수 없습니다.")
+            
+            frontend_dir = os.path.join(project_dir, "frontend")
+            shutil.copytree(frontend_template_dir, frontend_dir, dirs_exist_ok=True)
+            
 
             # Django 앱 생성 및 설정 (기존 코드)
             app_name = "app"
@@ -583,9 +592,9 @@ def merge_design_with_project(project_dir, erd_code, api_code, diagram_code, fro
 
         return project_dir
     except Exception as e:
+        print("여기")
         raise Exception(f"설계 결과물과 초기 디렉터리 합치기 중 오류 발생: {str(e)}")
 
-@shared_task
 def generate_project_structure(erd_code, api_code, diagram_code, project_dir):
     """
     설계 문서를 기반으로 프로젝트 구조를 생성합니다.
@@ -606,7 +615,6 @@ def generate_project_structure(erd_code, api_code, diagram_code, project_dir):
     except Exception as e:
         return f"프로젝트 구조 생성 중 오류 발생: {str(e)}"
 
-@shared_task
 def push_to_github(project_dir, repo_name, user):
     """
     프로젝트 디렉터리를 GitHub에 푸시합니다.
@@ -626,7 +634,6 @@ def push_to_github(project_dir, repo_name, user):
     except Exception as e:
         return f"GitHub 푸시 중 오류 발생: {str(e)}"
 
-@shared_task
 def setup_project_chain(document_id, repo_name, username, email, access_token, organization_name=None, private=False):
     try:
         document = Document.objects.get(id=document_id)

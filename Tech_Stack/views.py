@@ -77,7 +77,7 @@ class TechStackSetupView(ViewSet):
             frontend_template_dir = find_matching_template(frontend_tech_stack, 'frontend')
             if frontend_template_dir:
                 if os.path.exists(frontend_template_dir):
-                    shutil.copytree(frontend_template_dir, os.path.join(project_dir, "frontend"))
+                    shutil.copytree(frontend_template_dir, os.path.join(project_dir, "frontend"),dirs_exist_ok=True)
                     logger.info(f"Frontend template copied from {frontend_template_dir} to {os.path.join(project_dir, 'frontend')}")
                 else:
                     logger.warning(f"Frontend template directory does not exist: {frontend_template_dir}")
@@ -88,7 +88,7 @@ class TechStackSetupView(ViewSet):
             backend_template_dir = find_matching_template(backend_tech_stack, 'backend')
             if backend_template_dir:
                 if os.path.exists(backend_template_dir):
-                    shutil.copytree(backend_template_dir, os.path.join(project_dir, "backend"))
+                    shutil.copytree(backend_template_dir, os.path.join(project_dir, "backend"),dirs_exist_ok=True)
                     logger.info(f"Backend template copied from {backend_template_dir} to {os.path.join(project_dir, 'backend')}")
                 else:
                     logger.warning(f"Backend template directory does not exist: {backend_template_dir}")
@@ -99,14 +99,14 @@ class TechStackSetupView(ViewSet):
             if document_id and document_id != 0:
                 try:
                     document = Document.objects.get(id=document_id)
-                    merge_design_with_project.delay(
+                    merge_design_with_project(
                         project_dir=project_dir,
                         erd_code=document.erd_code,
                         api_code=document.api_code,
                         diagram_code=document.diagram_code,
                         frontend_tech_stack=frontend_tech_stack,
                         backend_tech_stack=backend_tech_stack
-                    ).get()
+                    )
                     message = "초기 디렉터리 생성 및 설계 결과물 합치기 성공"
                 except Document.DoesNotExist:
                     return Response(
@@ -130,7 +130,7 @@ class TechStackSetupView(ViewSet):
                 {"error": "초기 디렉터리 생성 중 오류가 발생했습니다."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-       
+            
     def save_project_tech(self, project, tech_stack_names, project_dir):
         """
         ProjectTech 모델에 데이터를 저장합니다.
@@ -243,7 +243,7 @@ class MergeDesignWithProjectView(APIView):
                     document = Document.objects.get(id=document_id)
 
                     # 설계 결과물과 초기 디렉터리 합치기
-                    merge_design_with_project.delay(
+                    merge_design_with_project(
                         project_dir=project_dir,
                         erd_code=document.erd_code,
                         api_code=document.api_code,
@@ -260,14 +260,14 @@ class MergeDesignWithProjectView(APIView):
             else:
                 # document_id가 없을 경우, 정적 파일만 복사
                 if frontend_template_dir:
-                    shutil.copytree(frontend_template_dir, os.path.join(project_dir, "frontend"))
+                    shutil.copytree(frontend_template_dir, os.path.join(project_dir, "frontend"),dirs_exist_ok=True)
                 if backend_template_dir:
-                    shutil.copytree(backend_template_dir, os.path.join(project_dir, "backend"))
+                    shutil.copytree(backend_template_dir, os.path.join(project_dir, "backend"),dirs_exist_ok=True)
                 message = "초기 디렉터리 생성 성공 (정적 파일 복사 완료)"
 
             # Celery 태스크 실행 (프론트엔드 또는 백엔드 중 하나라도 있으면 실행)
             if frontend_template_dir or backend_template_dir:
-                task = copy_template_files.delay(project_dir, frontend_template_dir, backend_template_dir)
+                task = copy_template_files(project_dir, frontend_template_dir, backend_template_dir)
                 logger.info(f"Celery 태스크 ID: {task.id}")
 
                 return Response(  # 성공 시
