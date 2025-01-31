@@ -553,7 +553,7 @@ def stream_document(request, document_id):
                             content = data_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
                             if content:
                                 sum_result += content
-                                content = content.replace("\n", "<br>")
+                                content = content.replace(" ", "&nbsp;").replace("\n", "<br>")
                                 yield f"data: {content}\n\n"
                         except json.JSONDecodeError as e:
                             logger.error(f"JSONDecodeError: {e} for data: {data}")
@@ -757,7 +757,7 @@ def update_stream_document(request, document_id):
                             content = data_json.get("choices", [{}])[0].get("delta", {}).get("content", "")
                             if content:
                                 sum_result += content
-                                content = content.replace("\n", "<br>")
+                                content = content.replace(" ", "&nbsp;").replace("\n", "<br>")
                                 yield f"data: {content}\n\n"
                         except json.JSONDecodeError as e:
                             logger.error(f"JSONDecodeError: {e} for data: {data}")
